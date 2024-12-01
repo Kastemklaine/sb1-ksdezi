@@ -1,0 +1,20 @@
+@import '@nativescript/theme/css/core.css';
+@import '@nativescript/theme/css/default.css';
+
+.btn-primary {
+  background-color: #8B5CF6;
+  color: white;
+}
+
+.btn-secondary {
+  background-color: #4F46E5;
+  color: white;
+}
+
+.bg-background {
+  background-color: #1F2937;
+}
+
+.bg-surface {
+  background-color: #374151;
+}
