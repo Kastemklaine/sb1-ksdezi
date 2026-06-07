@@ -75,6 +75,12 @@ export default function LoginPage() {
               ? 'Entrez le code à 6 chiffres de votre application authenticator'
               : 'Outil de gestion de projet collaboratif'}
           </p>
+          {step === 'credentials' && (
+            <div className="mt-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+              <span className="text-base leading-none mt-0.5">🔒</span>
+              <p>Accès réservé aux membres du projet. Si vous n'avez pas encore de compte, contactez un administrateur.</p>
+            </div>
+          )}
         </div>
 
         {step === 'credentials' && (
