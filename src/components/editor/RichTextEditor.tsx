@@ -9,8 +9,6 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import { Bold, Italic, UnderlineIcon, List, ListOrdered, AlignLeft, AlignCenter, Heading1, Heading2, CheckSquare, Highlighter, ImageIcon, Loader2 } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../lib/firebase';
 
 interface Props {
   content: string;
@@ -42,17 +40,15 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Écri
 
   const handleImageUpload = (file: File) => {
     if (!editor) return;
-    const storageRef = ref(storage, `images/${Date.now()}_${file.name}`);
-    const task = uploadBytesResumable(storageRef, file);
-    task.on('state_changed',
-      (snap) => setUploadProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
-      (err) => { console.error(err); setUploadProgress(null); },
-      async () => {
-        const url = await getDownloadURL(task.snapshot.ref);
-        editor.chain().focus().setImage({ src: url }).run();
-        setUploadProgress(null);
-      }
-    );
+    setUploadProgress(0);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      editor.chain().focus().setImage({ src }).run();
+      setUploadProgress(null);
+    };
+    reader.onerror = () => setUploadProgress(null);
+    reader.readAsDataURL(file);
   };
 
   if (!editor) return null;
