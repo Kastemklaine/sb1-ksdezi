@@ -29,6 +29,32 @@ export interface Task {
   updatedAt: string;
 }
 
+export interface WorkstreamSubSection {
+  id: string;
+  name: string;
+  order: number;
+}
+
+export interface WorkspaceDocument {
+  id: string;
+  workstreamId: string;
+  subSectionId?: string;
+  title: string;
+  content: string; // rich text as HTML string or JSON for diagrams
+  space: 'travail' | 'final';
+  type?: 'document' | 'diagram';
+  authorId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkspaceDiscussion {
+  id: string;
+  workstreamId: string;
+  messages: { id: string; authorId: string; content: string; createdAt: string }[];
+  createdAt: string;
+}
+
 export interface Workstream {
   id: string;
   name: string;
@@ -39,6 +65,7 @@ export interface Workstream {
   icon: string; // lucide icon name
   instance: 'copil' | 'cotec' | 'both' | 'none';
   assigneeIds: string[]; // users responsible for this workstream
+  subSections: WorkstreamSubSection[];
 }
 
 export interface GovernanceInstance {
@@ -63,5 +90,7 @@ export interface Project {
   tasks: Task[];
   governance: GovernanceInstance[];
   finalPage: FinalPage;
+  documents: WorkspaceDocument[];
+  discussions: WorkspaceDiscussion[];
   createdAt: string;
 }

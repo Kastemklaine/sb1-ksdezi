@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Users, FileText, Network, LogOut, Menu, X,
-  ChevronDown, ChevronRight, Settings, Bell, MessageSquare, Calendar, FolderKanban, ShieldCheck
+  ChevronDown, ChevronRight, Settings, Bell, MessageSquare, Calendar, FolderKanban, ShieldCheck, FolderOpen, GitBranch
 } from 'lucide-react';
+import { useFontSize } from '../../hooks/useFontSize';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
@@ -38,6 +39,7 @@ export default function Layout({ view, setView, children }: Props) {
   const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
   const projectName = useProjectStore(s => curProject(s)?.name ?? '');
   const projectSubtitle = useProjectStore(s => curProject(s)?.subtitle ?? '');
+  const { current: fontSize, setFontSize } = useFontSize();
   // On mobile: drawer closed by default. On tablet/desktop: open by default.
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [wsExpanded, setWsExpanded] = useState(true);
@@ -120,6 +122,10 @@ export default function Layout({ view, setView, children }: Props) {
     if (view.type === 'messaging') return 'Messagerie';
     if (view.type === 'calendar') return 'Agenda';
     if (view.type === 'projects') return 'Projets';
+    if (view.type === 'workspaces') return 'Espaces de travail';
+    if (view.type === 'workspace') return 'Espace de travail';
+    if (view.type === 'final-document') return 'Dossier final';
+    if (view.type === 'diagrams') return 'Schémas';
     return '';
   };
 
@@ -187,6 +193,9 @@ export default function Layout({ view, setView, children }: Props) {
           </button>
 
           {navItem('Agenda', Calendar, { type: 'calendar' })}
+          {navItem('Espaces de travail', FolderOpen, { type: 'workspaces' })}
+          {navItem('Dossier final', FileText, { type: 'final-document' })}
+          {navItem('Schémas', GitBranch, { type: 'diagrams' })}
           {currentUser?.role === 'superadmin' && navItem('Utilisateurs', Users, { type: 'users' })}
           {currentUser?.role === 'superadmin' && navItem('Paramètres', Settings, { type: 'settings' })}
           {currentUser?.role === 'superadmin' && navItem('Projets', FolderKanban, { type: 'projects' })}
@@ -340,7 +349,7 @@ export default function Layout({ view, setView, children }: Props) {
               {userMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-20">
+                  <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-20">
                     <div className="px-3 py-2 border-b border-gray-100">
                       <p className="text-sm font-medium text-gray-800">{currentUser?.name}</p>
                       <p className="text-xs text-gray-400 capitalize">{currentUser?.role}</p>
@@ -349,6 +358,25 @@ export default function Layout({ view, setView, children }: Props) {
                           <ShieldCheck className="w-3 h-3" /> 2FA activée
                         </span>
                       )}
+                    </div>
+                    {/* Font size control */}
+                    <div className="px-3 py-2 border-b border-gray-100">
+                      <p className="text-xs text-gray-500 mb-1.5">Taille du texte</p>
+                      <div className="flex gap-1">
+                        {(['sm', 'md', 'lg'] as const).map((size, i) => (
+                          <button
+                            key={size}
+                            onClick={() => setFontSize(size)}
+                            className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors min-h-[36px] ${
+                              fontSize === size
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {['A-', 'A', 'A+'][i]}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <button
                       onClick={() => { setShow2FA(true); setUserMenuOpen(false); }}

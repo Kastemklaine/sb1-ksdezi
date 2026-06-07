@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Font size preference */
+[data-fontsize="sm"] { font-size: 14px; }
+[data-fontsize="md"] { font-size: 16px; }
+[data-fontsize="lg"] { font-size: 18px; }
+
+/* Print styles for workspace documents */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+}
+
 .ProseMirror {
   outline: none;
   min-height: 120px;
