@@ -68,6 +68,21 @@ export interface Workstream {
   subSections: WorkstreamSubSection[];
 }
 
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  allDay: boolean;
+  workstreamId?: string;
+  assigneeIds: string[];
+  createdBy: string;
+  color: string;
+  alertMinutes: number;
+  createdAt: string;
+}
+
 export interface GovernanceInstance {
   id: string;
   name: string; // COPIL or COTEC
@@ -92,5 +107,6 @@ export interface Project {
   finalPage: FinalPage;
   documents: WorkspaceDocument[];
   discussions: WorkspaceDiscussion[];
+  events: CalendarEvent[];
   createdAt: string;
 }

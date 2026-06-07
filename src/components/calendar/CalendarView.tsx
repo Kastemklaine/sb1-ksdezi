@@ -1,31 +1,13 @@
 import { useState, useEffect } from 'react';
-import {
-  collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp
-} from 'firebase/firestore';
-import { db } from '../../lib/firebase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
-import { Calendar, Plus, X, ChevronLeft, ChevronRight, Loader2, Download, Trash2 } from 'lucide-react';
+import { Calendar, Plus, X, ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   isSameMonth, isSameDay, format, addMonths, subMonths, parseISO, isToday
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
-
-interface CalendarEvent {
-  id: string;
-  title: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  allDay: boolean;
-  workstreamId?: string;
-  assigneeIds: string[];
-  createdBy: string;
-  color: string;
-  alertMinutes: number;
-  createdAt: string;
-}
+import type { CalendarEvent } from '../../types';
 
 const ALERT_OPTIONS = [
   { value: 0, label: 'Aucune alerte' },
@@ -84,9 +66,9 @@ export default function CalendarView() {
   const currentUser = useAuthStore(s => s.currentUser);
   const users = useAuthStore(s => s.users);
   const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
+  const events = useProjectStore(s => curProject(s)?.events ?? []);
+  const { createEvent, updateEvent, deleteEvent } = useProjectStore();
 
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -102,21 +84,14 @@ export default function CalendarView() {
   const [formAssigneeIds, setFormAssigneeIds] = useState<string[]>([]);
   const [formColor, setFormColor] = useState(DEFAULT_COLOR);
   const [formAlertMinutes, setFormAlertMinutes] = useState(0);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadEvents();
-  }, []);
-
-  useEffect(() => {
-    // Request notification permission on mount
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
   }, []);
 
   useEffect(() => {
-    // Check for upcoming events and show alerts
     if (!currentUser || events.length === 0) return;
     const now = new Date();
     events.forEach(event => {
@@ -133,34 +108,6 @@ export default function CalendarView() {
       }
     });
   }, [events, currentUser]);
-
-  const loadEvents = async () => {
-    setLoading(true);
-    try {
-      const q = query(collection(db, 'events'), orderBy('startDate', 'asc'));
-      const snap = await getDocs(q);
-      const evts: CalendarEvent[] = snap.docs.map(d => {
-        const data = d.data();
-        return {
-          id: d.id,
-          title: data.title ?? '',
-          description: data.description ?? '',
-          startDate: data.startDate ?? '',
-          endDate: data.endDate ?? '',
-          allDay: data.allDay ?? true,
-          workstreamId: data.workstreamId,
-          assigneeIds: data.assigneeIds ?? [],
-          createdBy: data.createdBy ?? '',
-          color: data.color ?? DEFAULT_COLOR,
-          alertMinutes: data.alertMinutes ?? 0,
-          createdAt: data.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-        };
-      });
-      setEvents(evts);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const openNewEvent = (day?: Date) => {
     const d = day ?? new Date();
@@ -192,45 +139,32 @@ export default function CalendarView() {
     setShowModal(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!currentUser || !formTitle.trim()) return;
-    setSaving(true);
-    try {
-      const data = {
-        title: formTitle.trim(),
-        description: formDescription,
-        startDate: formStartDate,
-        endDate: formEndDate || formStartDate,
-        allDay: formAllDay,
-        workstreamId: formWorkstreamId || null,
-        assigneeIds: formAssigneeIds,
-        createdBy: currentUser.id,
-        color: formColor,
-        alertMinutes: formAlertMinutes,
-        createdAt: serverTimestamp(),
-      };
-      if (selectedEvent) {
-        await updateDoc(doc(db, 'events', selectedEvent.id), data);
-      } else {
-        await addDoc(collection(db, 'events'), data);
-      }
-      setShowModal(false);
-      await loadEvents();
-    } finally {
-      setSaving(false);
+    const data = {
+      title: formTitle.trim(),
+      description: formDescription,
+      startDate: formStartDate,
+      endDate: formEndDate || formStartDate,
+      allDay: formAllDay,
+      workstreamId: formWorkstreamId || undefined,
+      assigneeIds: formAssigneeIds,
+      createdBy: currentUser.id,
+      color: formColor,
+      alertMinutes: formAlertMinutes,
+    };
+    if (selectedEvent) {
+      updateEvent(selectedEvent.id, data);
+    } else {
+      createEvent(data);
     }
+    setShowModal(false);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!selectedEvent) return;
-    setSaving(true);
-    try {
-      await deleteDoc(doc(db, 'events', selectedEvent.id));
-      setShowModal(false);
-      await loadEvents();
-    } finally {
-      setSaving(false);
-    }
+    deleteEvent(selectedEvent.id);
+    setShowModal(false);
   };
 
   const handleExportICS = (event: CalendarEvent) => {
@@ -300,11 +234,7 @@ export default function CalendarView() {
       </div>
 
       {/* Calendar grid */}
-      {loading ? (
-        <div className="flex justify-center items-center h-48">
-          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-        </div>
-      ) : (
+      {(
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 overflow-auto">
           {/* Day headers */}
           <div className="grid grid-cols-7 border-b border-gray-200">
@@ -496,7 +426,6 @@ export default function CalendarView() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleDelete}
-                      disabled={saving}
                       className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors min-h-[44px]"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -522,10 +451,9 @@ export default function CalendarView() {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={saving || !formTitle.trim()}
+                  disabled={!formTitle.trim()}
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors min-h-[44px]"
                 >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   {selectedEvent ? 'Enregistrer' : 'Créer'}
                 </button>
               </div>

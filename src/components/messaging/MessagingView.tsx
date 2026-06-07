@@ -72,6 +72,9 @@ export default function MessagingView() {
       });
       setMessages(msgs);
       setLoading(false);
+    }, () => {
+      // Firestore not configured yet — show empty inbox
+      setLoading(false);
     });
     return () => unsub();
   }, []);
@@ -88,9 +91,9 @@ export default function MessagingView() {
 
   const markAsRead = async (msg: Message) => {
     if (!currentUser || msg.readBy.includes(currentUser.id)) return;
-    await updateDoc(doc(db, 'messages', msg.id), {
-      readBy: arrayUnion(currentUser.id),
-    });
+    try {
+      await updateDoc(doc(db, 'messages', msg.id), { readBy: arrayUnion(currentUser.id) });
+    } catch { /* Firestore not configured */ }
   };
 
   const handleSelect = (msg: Message) => {

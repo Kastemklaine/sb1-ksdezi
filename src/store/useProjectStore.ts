@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuid } from 'uuid';
-import type { Task, Workstream, GovernanceInstance, TaskStatus, Project, WorkspaceDocument, WorkspaceDiscussion, WorkstreamSubSection } from '../types';
+import type { Task, Workstream, GovernanceInstance, TaskStatus, Project, WorkspaceDocument, WorkspaceDiscussion, WorkstreamSubSection, CalendarEvent } from '../types';
 
 const WORKSTREAMS: Workstream[] = [
   { id: 'ws1', name: 'Communication', color: 'bg-yellow-400', textColor: 'text-yellow-900', description: 'Stratégie et actions de communication du projet', notes: '', icon: 'Megaphone', instance: 'both', assigneeIds: [], subSections: [] },
@@ -28,6 +28,7 @@ const DEFAULT_PROJECT: Project = {
   finalPage: { content: '<p>La page résultat du projet sera publiée ici par les super administrateurs.</p>', updatedAt: new Date().toISOString(), updatedBy: '' },
   documents: [],
   discussions: [],
+  events: [],
   createdAt: new Date().toISOString(),
 };
 
@@ -57,6 +58,10 @@ interface ProjectState {
   createSubSection: (workstreamId: string, name: string) => void;
   deleteSubSection: (workstreamId: string, subSectionId: string) => void;
   addDiscussionMessage: (workstreamId: string, authorId: string, content: string) => void;
+  // Calendar
+  createEvent: (data: Omit<CalendarEvent, 'id' | 'createdAt'>) => void;
+  updateEvent: (id: string, data: Partial<CalendarEvent>) => void;
+  deleteEvent: (id: string) => void;
 }
 
 type SetFn = (partial: ProjectState | Partial<ProjectState> | ((state: ProjectState) => ProjectState | Partial<ProjectState>), replace?: boolean) => void;
@@ -91,6 +96,7 @@ export const useProjectStore = create<ProjectState>()(
           finalPage: { content: '', updatedAt: new Date().toISOString(), updatedBy: '' },
           documents: [],
           discussions: [],
+          events: [],
           createdAt: new Date().toISOString(),
         };
         set(s => ({ projects: [...s.projects, project], currentProjectId: project.id }));
@@ -240,6 +246,21 @@ export const useProjectStore = create<ProjectState>()(
           };
           return { discussions: [...discussions, newDisc] };
         });
+      },
+
+      createEvent: (data) => {
+        const event: CalendarEvent = { ...data, id: uuid(), createdAt: new Date().toISOString() };
+        updateCur(set, p => ({ events: [...(p.events ?? []), event] }));
+      },
+
+      updateEvent: (id, data) => {
+        updateCur(set, p => ({
+          events: (p.events ?? []).map(e => e.id === id ? { ...e, ...data } : e),
+        }));
+      },
+
+      deleteEvent: (id) => {
+        updateCur(set, p => ({ events: (p.events ?? []).filter(e => e.id !== id) }));
       },
     }),
     { name: 'project-store-v2' }

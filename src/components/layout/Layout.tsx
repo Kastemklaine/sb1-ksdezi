@@ -67,6 +67,8 @@ export default function Layout({ view, setView, children }: Props) {
         return isForMe && fromId !== currentUser.id && !readBy.includes(currentUser.id);
       }).length;
       setUnreadCount(count);
+    }, () => {
+      // Firestore not yet configured — silent fail, unread count stays 0
     });
     return () => unsub();
   }, [currentUser]);
