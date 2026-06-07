@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, AlertTriangle } from 'lucide-react';
+import { X, AlertTriangle, FileText, ClipboardList } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RichTextEditor from '../editor/RichTextEditor';
@@ -33,9 +33,11 @@ export default function TaskModal({ workstreamId, task, defaultStatus, onClose }
   const isWsAssignee = !!(currentUser && ws?.assigneeIds?.includes(currentUser.id));
   const canEdit = isAdmin || isWsAssignee;
 
+  const [activeTab, setActiveTab] = useState<'details' | 'notes'>('details');
   const [title, setTitle] = useState(task?.title ?? '');
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? defaultStatus ?? 'todo');
   const [description, setDescription] = useState(task?.description ?? '');
+  const [notes, setNotes] = useState(task?.notes ?? '');
   const [assigneeIds, setAssigneeIds] = useState<string[]>(task?.assigneeIds ?? []);
   const [startDate, setStartDate] = useState(task?.startDate ?? '');
   const [endDate, setEndDate] = useState(task?.endDate ?? '');
@@ -64,6 +66,7 @@ export default function TaskModal({ workstreamId, task, defaultStatus, onClose }
       title: title.trim(),
       status,
       description,
+      notes,
       assigneeIds,
       startDate,
       endDate,
@@ -102,7 +105,37 @@ export default function TaskModal({ workstreamId, task, defaultStatus, onClose }
           </button>
         </div>
 
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('details')}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'details' ? 'border-green-600 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            <ClipboardList className="w-4 h-4" />
+            Détails
+          </button>
+          <button
+            onClick={() => setActiveTab('notes')}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'notes' ? 'border-green-600 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            <FileText className="w-4 h-4" />
+            Notes de travail
+          </button>
+        </div>
+
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          {activeTab === 'notes' && (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-gray-500">Notes de travail internes — visibles uniquement par les membres et administrateurs.</p>
+              <RichTextEditor
+                content={notes}
+                onChange={setNotes}
+                readOnly={!canEdit}
+                placeholder="Ajoutez vos notes de travail, réflexions, ressources..."
+                enableImageUpload
+              />
+            </div>
+          )}
+          {activeTab === 'details' && (<>
           {blockedByDeps.length > 0 && (
             <div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800">
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -197,6 +230,7 @@ export default function TaskModal({ workstreamId, task, defaultStatus, onClose }
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
             <RichTextEditor content={description} onChange={setDescription} readOnly={!canEdit} placeholder="Décrivez la tâche, les critères d'acceptation..." />
           </div>
+          </>)}
         </div>
 
         {canEdit && (
