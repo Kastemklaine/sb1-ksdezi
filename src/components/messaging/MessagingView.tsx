@@ -4,6 +4,8 @@ import { useProjectStore, curProject } from '../../store/useProjectStore';
 import type { MessageAttachment } from '../../types';
 import { MessageSquare, Plus, X, Send, Paperclip, FileText, ArrowLeft, Loader2 } from 'lucide-react';
 import RichTextEditor from '../editor/RichTextEditor';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { storage } from '../../lib/firebase';
 
 type MobilePanel = 'list' | 'detail';
 
@@ -42,14 +44,18 @@ export default function MessagingView() {
 
   const handleAttachFile = (file: File) => {
     setUploading(true);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const url = e.target?.result as string;
-      setAttachments(prev => [...prev, { name: file.name, url, type: file.type, size: file.size }]);
-      setUploading(false);
-    };
-    reader.onerror = () => setUploading(false);
-    reader.readAsDataURL(file);
+    const storageRef = ref(storage, `messaging/${Date.now()}_${file.name}`);
+    const task = uploadBytesResumable(storageRef, file);
+    task.on('state_changed',
+      null,
+      () => setUploading(false),
+      () => {
+        getDownloadURL(task.snapshot.ref).then(url => {
+          setAttachments(prev => [...prev, { name: file.name, url, type: file.type, size: file.size }]);
+          setUploading(false);
+        });
+      }
+    );
   };
 
   const handleSend = () => {
