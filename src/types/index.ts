@@ -7,6 +7,8 @@ export interface User {
   role: Role;
   workstreamIds: string[];
   createdAt: string;
+  twoFactorEnabled: boolean;
+  twoFactorSecret?: string;
 }
 
 export type TaskStatus = 'todo' | 'inprogress' | 'done' | 'blocked';

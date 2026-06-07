@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Users, FileText, Network, LogOut, Menu, X,
-  ChevronDown, ChevronRight, Settings, Bell, MessageSquare, Calendar, FolderKanban
+  ChevronDown, ChevronRight, Settings, Bell, MessageSquare, Calendar, FolderKanban, ShieldCheck
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { View } from '../../App';
+import TwoFactorSetup from '../profile/TwoFactorSetup';
 
 interface Props {
   view: View;
@@ -42,6 +43,7 @@ export default function Layout({ view, setView, children }: Props) {
   const [wsExpanded, setWsExpanded] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [show2FA, setShow2FA] = useState(false);
 
   // Initialise sidebar state based on screen width after mount
   useEffect(() => {
@@ -342,7 +344,19 @@ export default function Layout({ view, setView, children }: Props) {
                     <div className="px-3 py-2 border-b border-gray-100">
                       <p className="text-sm font-medium text-gray-800">{currentUser?.name}</p>
                       <p className="text-xs text-gray-400 capitalize">{currentUser?.role}</p>
+                      {currentUser?.twoFactorEnabled && (
+                        <span className="text-xs text-green-600 flex items-center gap-1 mt-0.5">
+                          <ShieldCheck className="w-3 h-3" /> 2FA activée
+                        </span>
+                      )}
                     </div>
+                    <button
+                      onClick={() => { setShow2FA(true); setUserMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-green-600" />
+                      Double authentification
+                    </button>
                     <button
                       onClick={() => { logout(); setUserMenuOpen(false); }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -361,6 +375,8 @@ export default function Layout({ view, setView, children }: Props) {
           {children}
         </main>
       </div>
+
+      {show2FA && <TwoFactorSetup onClose={() => setShow2FA(false)} />}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Save, Settings, FolderKanban, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { sendAssignmentEmail } from '../../lib/emailService';
 import type { Workstream } from '../../types';
 
 type Tab = 'workstreams' | 'project';
@@ -76,7 +77,7 @@ export default function SettingsView() {
   const updateWorkstream = useProjectStore(s => s.updateWorkstream);
   const createWorkstream = useProjectStore(s => s.createWorkstream);
   const deleteWorkstream = useProjectStore(s => s.deleteWorkstream);
-  const projectName = useProjectStore(s => curProject(s)?.name ?? '');
+  const projectName = useProjectStore(s => curProject(s)?.name ?? 'le projet');
   const projectSubtitle = useProjectStore(s => curProject(s)?.subtitle ?? '');
   const updateProjectInfo = useProjectStore(s => s.updateProjectInfo);
   const users = useAuthStore(s => s.users);
@@ -130,6 +131,10 @@ export default function SettingsView() {
 
   const saveRow = (id: string) => {
     const row = rows[id];
+    const currentWs = workstreams.find(ws => ws.id === id);
+    const prevAssignees = currentWs?.assigneeIds ?? [];
+    const newAssignees = row.assigneeIds.filter(uid => !prevAssignees.includes(uid));
+
     updateWorkstream(id, {
       name: row.name,
       description: row.description,
@@ -139,6 +144,13 @@ export default function SettingsView() {
       instance: row.instance,
       assigneeIds: row.assigneeIds,
     });
+
+    // Email newly added assignees
+    newAssignees.forEach(uid => {
+      const u = users.find(x => x.id === uid);
+      if (u) sendAssignmentEmail({ toEmail: u.email, toName: u.name, workstreamName: row.name, projectName });
+    });
+
     setRows(r => ({ ...r, [id]: { ...r[id], saved: true } }));
     setTimeout(() => setRows(r => ({ ...r, [id]: { ...r[id], saved: false } })), 2000);
   };

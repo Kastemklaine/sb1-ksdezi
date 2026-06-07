@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, X, Pencil, Trash2, Shield, User, Crown } from 'lucide-react';
+import { Plus, X, Pencil, Trash2, Shield, User, Crown, ShieldCheck, KeyRound } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import type { Role, User as UserType } from '../../types';
@@ -21,9 +21,10 @@ interface FormData {
 const EMPTY_FORM: FormData = { name: '', email: '', role: 'membre', workstreamIds: [], password: '' };
 
 export default function UserManagement() {
-  const { users, createUser, updateUser, deleteUser } = useAuthStore();
+  const { users, createUser, updateUser, deleteUser, resetTwoFactor } = useAuthStore();
   const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
   const currentUser = useAuthStore(s => s.currentUser);
+  const projectName = useProjectStore(s => curProject(s)?.name ?? 'le projet');
 
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
@@ -42,7 +43,7 @@ export default function UserManagement() {
       updateUser(editingUser.id, { name: form.name, email: form.email, role: form.role, workstreamIds: form.workstreamIds });
     } else {
       if (!form.password) return;
-      createUser(form);
+      createUser({ ...form, projectName });
     }
     setShowModal(false);
   };
@@ -76,6 +77,7 @@ export default function UserManagement() {
               <th className="text-left px-4 py-3 font-medium text-gray-600">Utilisateur</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Rôle</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Axes attribués</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600 hidden lg:table-cell">2FA</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -114,8 +116,26 @@ export default function UserManagement() {
                       </div>
                     )}
                   </td>
+                  <td className="px-4 py-3 hidden lg:table-cell">
+                    {u.twoFactorEnabled ? (
+                      <span className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded-full w-fit">
+                        <ShieldCheck className="w-3 h-3" />Activée
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end">
+                      {u.twoFactorEnabled && u.id !== currentUser?.id && (
+                        <button
+                          onClick={() => { if (confirm(`Réinitialiser la 2FA de ${u.name} ? Un email lui sera envoyé.`)) resetTwoFactor(u.id); }}
+                          title="Réinitialiser la clé 2FA"
+                          className="p-1.5 hover:bg-orange-50 rounded-lg text-gray-400 hover:text-orange-600"
+                        >
+                          <KeyRound className="w-4 h-4" />
+                        </button>
+                      )}
                       <button onClick={() => openEdit(u)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700">
                         <Pencil className="w-4 h-4" />
                       </button>
