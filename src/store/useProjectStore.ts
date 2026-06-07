@@ -9,9 +9,10 @@ const WORKSTREAMS: Workstream[] = [
   { id: 'ws3', name: 'COTEC', color: 'bg-teal-500', textColor: 'text-white', description: 'Comité Technique — suivi opérationnel', notes: '', icon: 'Settings', instance: 'cotec', assigneeIds: [] },
   { id: 'ws4', name: 'Participation citoyenne', color: 'bg-red-500', textColor: 'text-white', description: 'Engagement et concertation citoyenne', notes: '', icon: 'Heart', instance: 'none', assigneeIds: [] },
   { id: 'ws5', name: 'Sensibilisation & médiation', color: 'bg-pink-500', textColor: 'text-white', description: 'Actions de sensibilisation et médiation', notes: '', icon: 'BookOpen', instance: 'none', assigneeIds: [] },
-  { id: 'ws6', name: 'Signalétique + voirie', color: 'bg-purple-600', textColor: 'text-white', description: 'Aménagement signalétique et voirie adaptée', notes: '', icon: 'MapPin', instance: 'cotec', assigneeIds: [] },
-  { id: 'ws7', name: 'Gestion différenciée + fleurissement', color: 'bg-indigo-600', textColor: 'text-white', description: 'Gestion différenciée des espaces verts et fleurissement', notes: '', icon: 'Flower2', instance: 'cotec', assigneeIds: [] },
-  { id: 'ws8', name: 'Aménagements + mobiliers urbains', color: 'bg-cyan-500', textColor: 'text-white', description: 'Mobiliers urbains et aménagements accessibles', notes: '', icon: 'Building2', instance: 'cotec', assigneeIds: [] },
+  { id: 'ws6', name: 'Signalétique', color: 'bg-purple-600', textColor: 'text-white', description: 'Aménagement signalétique adaptée', notes: '', icon: 'MapPin', instance: 'cotec', assigneeIds: [] },
+  { id: 'ws7', name: 'Gestion différenciée, fleurissement & propreté', color: 'bg-indigo-600', textColor: 'text-white', description: 'Gestion différenciée des espaces verts, fleurissement et propreté', notes: '', icon: 'Flower2', instance: 'cotec', assigneeIds: [] },
+  { id: 'ws8', name: 'Aménagements & mobiliers urbains', color: 'bg-cyan-500', textColor: 'text-white', description: 'Mobiliers urbains et aménagements accessibles', notes: '', icon: 'Building2', instance: 'cotec', assigneeIds: [] },
+  { id: 'ws9', name: 'Mobilité, voirie & accessibilité', color: 'bg-orange-500', textColor: 'text-white', description: 'Accessibilité des cheminements, voirie et mobilité douce', notes: '', icon: 'Car', instance: 'cotec', assigneeIds: [] },
 ];
 
 const GOVERNANCE: GovernanceInstance[] = [
@@ -28,6 +29,8 @@ interface ProjectState {
   projectSubtitle: string;
   updateProjectInfo: (name: string, subtitle: string) => void;
   updateWorkstream: (id: string, data: Partial<Workstream>) => void;
+  createWorkstream: (data: Omit<Workstream, 'id'>) => void;
+  deleteWorkstream: (id: string) => void;
   updateWorkstreamNotes: (workstreamId: string, notes: string) => void;
   createTask: (data: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Task;
   updateTask: (id: string, data: Partial<Task>) => void;
@@ -51,6 +54,16 @@ export const useProjectStore = create<ProjectState>()(
       },
       updateWorkstream: (id, data) => {
         set(state => ({ workstreams: state.workstreams.map(ws => ws.id === id ? { ...ws, ...data } : ws) }));
+      },
+      createWorkstream: (data) => {
+        const ws: Workstream = { ...data, id: uuid() };
+        set(state => ({ workstreams: [...state.workstreams, ws] }));
+      },
+      deleteWorkstream: (id) => {
+        set(state => ({
+          workstreams: state.workstreams.filter(ws => ws.id !== id),
+          tasks: state.tasks.filter(t => t.workstreamId !== id),
+        }));
       },
       updateWorkstreamNotes: (workstreamId, notes) => {
         set(state => ({ workstreams: state.workstreams.map(ws => ws.id === workstreamId ? { ...ws, notes } : ws) }));
