@@ -48,7 +48,7 @@ export default function App() {
       {view.type === 'governance' && <GovernanceView />}
       {view.type === 'settings' && <SettingsView />}
       {view.type === 'messaging' && <MessagingView />}
-      {view.type === 'calendar' && <CalendarView />}
+      {view.type === 'calendar' && <CalendarView setView={setView} />}
       {view.type === 'projects' && <ProjectsView />}
       {view.type === 'workspaces' && <WorkspacesSelector setView={setView} />}
       {view.type === 'workspace' && <WorkspaceView workstreamId={view.workstreamId} setView={setView} />}

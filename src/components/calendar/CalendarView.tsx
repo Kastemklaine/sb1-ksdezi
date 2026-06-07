@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
-import { Calendar, Plus, X, ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react';
+import { Calendar, Plus, X, ChevronLeft, ChevronRight, Download, Trash2, RefreshCw, CheckSquare, Info, Pencil, FolderOpen } from 'lucide-react';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   isSameMonth, isSameDay, format, addMonths, subMonths, parseISO, isToday
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import type { CalendarEvent } from '../../types';
+import type { CalendarEvent, Task } from '../../types';
+import type { View } from '../../App';
 
 const ALERT_OPTIONS = [
   { value: 0, label: 'Aucune alerte' },
@@ -18,56 +19,93 @@ const ALERT_OPTIONS = [
 ];
 
 const DEFAULT_COLOR = '#00c875';
+const TASK_COLOR = '#6366f1'; // indigo for tasks
 
-function generateICS(event: CalendarEvent): string {
+function eventToVEVENT(event: CalendarEvent): string {
   const toICSDate = (iso: string, allDay: boolean) => {
     const d = new Date(iso);
-    if (allDay) {
-      return format(d, 'yyyyMMdd');
-    }
+    if (allDay) return format(d, 'yyyyMMdd');
     return format(d, "yyyyMMdd'T'HHmmss");
   };
-
   const escape = (s: string) => s.replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n');
-
   const now = format(new Date(), "yyyyMMdd'T'HHmmss");
-  const uid = `${event.id}@ville-enfant.fr`;
-  const startStr = toICSDate(event.startDate, event.allDay);
-  const endStr = toICSDate(event.endDate, event.allDay);
-
-  const dtStartProp = event.allDay ? `DTSTART;VALUE=DATE:${startStr}` : `DTSTART:${startStr}`;
-  const dtEndProp = event.allDay ? `DTEND;VALUE=DATE:${endStr}` : `DTEND:${endStr}`;
-
-  let alertBlock = '';
-  if (event.alertMinutes > 0) {
-    alertBlock = `BEGIN:VALARM\r\nTRIGGER:-PT${event.alertMinutes}M\r\nACTION:DISPLAY\r\nDESCRIPTION:${escape(event.title)}\r\nEND:VALARM\r\n`;
-  }
-
+  const dtStart = event.allDay ? `DTSTART;VALUE=DATE:${toICSDate(event.startDate, true)}` : `DTSTART:${toICSDate(event.startDate, false)}`;
+  const dtEnd = event.allDay ? `DTEND;VALUE=DATE:${toICSDate(event.endDate, true)}` : `DTEND:${toICSDate(event.endDate, false)}`;
+  const alert = event.alertMinutes > 0
+    ? `BEGIN:VALARM\r\nTRIGGER:-PT${event.alertMinutes}M\r\nACTION:DISPLAY\r\nDESCRIPTION:${escape(event.title)}\r\nEND:VALARM`
+    : '';
   return [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Ville à hauteur d\'enfant//FR',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:${uid}`,
+    `UID:evt-${event.id}@ville-enfant.fr`,
     `DTSTAMP:${now}`,
-    dtStartProp,
-    dtEndProp,
+    dtStart, dtEnd,
     `SUMMARY:${escape(event.title)}`,
     event.description ? `DESCRIPTION:${escape(event.description)}` : '',
-    alertBlock.trim(),
+    alert,
     'END:VEVENT',
-    'END:VCALENDAR',
   ].filter(Boolean).join('\r\n');
 }
 
-export default function CalendarView() {
+function taskToVEVENT(task: Task, wsName: string): string {
+  const escape = (s: string) => s.replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n');
+  const now = format(new Date(), "yyyyMMdd'T'HHmmss");
+  if (!task.startDate) return '';
+  const startStr = format(parseISO(task.startDate), 'yyyyMMdd');
+  const endDate = task.endDate ? task.endDate : task.startDate;
+  // DTEND for all-day is exclusive (day after)
+  const endDateObj = new Date(endDate);
+  endDateObj.setDate(endDateObj.getDate() + 1);
+  const endStr = format(endDateObj, 'yyyyMMdd');
+  const statusMap: Record<string, string> = { todo: 'NEEDS-ACTION', inprogress: 'IN-PROCESS', done: 'COMPLETED', blocked: 'CANCELLED' };
+  return [
+    'BEGIN:VEVENT',
+    `UID:task-${task.id}@ville-enfant.fr`,
+    `DTSTAMP:${now}`,
+    `DTSTART;VALUE=DATE:${startStr}`,
+    `DTEND;VALUE=DATE:${endStr}`,
+    `SUMMARY:[Tâche] ${escape(task.title)}`,
+    `DESCRIPTION:Axe: ${escape(wsName)}\\nStatut: ${statusMap[task.status] ?? task.status}`,
+    `CATEGORIES:TACHE`,
+    `STATUS:${statusMap[task.status] ?? 'NEEDS-ACTION'}`,
+    'END:VEVENT',
+  ].filter(Boolean).join('\r\n');
+}
+
+function generateICS(event: CalendarEvent): string {
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', "PRODID:-//Ville à hauteur d'enfant//FR", 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', eventToVEVENT(event), 'END:VCALENDAR'].join('\r\n');
+}
+
+function generateFullICS(events: CalendarEvent[], tasks: Task[], workstreams: { id: string; name: string }[]): string {
+  const getWsName = (id: string) => workstreams.find(w => w.id === id)?.name ?? '';
+  const vevents = [
+    ...events.map(eventToVEVENT),
+    ...tasks.filter(t => t.startDate).map(t => taskToVEVENT(t, getWsName(t.workstreamId))),
+  ].filter(Boolean);
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    "PRODID:-//Ville à hauteur d'enfant - Quimperlé//FR",
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:Ville à hauteur d'enfant`,
+    'X-WR-TIMEZONE:Europe/Paris',
+    ...vevents,
+    'END:VCALENDAR',
+  ].join('\r\n');
+}
+
+
+interface Props { setView: (v: View) => void; }
+
+export default function CalendarView({ setView }: Props) {
   const currentUser = useAuthStore(s => s.currentUser);
   const users = useAuthStore(s => s.users);
   const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
   const events = useProjectStore(s => curProject(s)?.events ?? []);
+  const tasks = useProjectStore(s => (curProject(s)?.tasks ?? []).filter(t => t.startDate));
   const { createEvent, updateEvent, deleteEvent } = useProjectStore();
+  const [showOutlookModal, setShowOutlookModal] = useState(false);
+  const [taskMenu, setTaskMenu] = useState<{ task: Task; x: number; y: number } | null>(null);
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -185,13 +223,30 @@ export default function CalendarView() {
   const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
 
+  const handleExportFullICS = () => {
+    const ics = generateFullICS(events, tasks, workstreams);
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'agenda-ville-hauteur-enfant.ics';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const getEventsForDay = (day: Date) =>
     events.filter(e => {
+      try { return isSameDay(parseISO(e.startDate), day); } catch { return false; }
+    });
+
+  const getTasksForDay = (day: Date) =>
+    tasks.filter(t => {
       try {
-        return isSameDay(parseISO(e.startDate), day);
-      } catch {
-        return false;
-      }
+        if (!t.startDate) return false;
+        const start = parseISO(t.startDate);
+        const end = t.endDate ? parseISO(t.endDate) : start;
+        return (isSameDay(start, day)) || (day >= start && day <= end);
+      } catch { return false; }
     });
 
   // Abbreviated day names for mobile, full for desktop
@@ -206,26 +261,25 @@ export default function CalendarView() {
           <Calendar className="w-6 h-6 text-green-600" />
           <h2 className="text-xl font-bold text-gray-900">Agenda</h2>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCurrentMonth(m => subMonths(m, 1))}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-          >
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => setCurrentMonth(m => subMonths(m, 1))} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
             <ChevronLeft className="w-5 h-5" />
           </button>
           <span className="text-sm sm:text-base font-semibold text-gray-800 capitalize min-w-[120px] sm:min-w-[160px] text-center">
             {format(currentMonth, 'MMMM yyyy', { locale: fr })}
           </span>
-          <button
-            onClick={() => setCurrentMonth(m => addMonths(m, 1))}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-          >
+          <button onClick={() => setCurrentMonth(m => addMonths(m, 1))} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
             <ChevronRight className="w-5 h-5" />
           </button>
-          <button
-            onClick={() => openNewEvent()}
-            className="flex items-center gap-1 sm:gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors min-h-[44px]"
-          >
+          <button onClick={() => setShowOutlookModal(true)} className="flex items-center gap-1.5 border border-blue-300 text-blue-700 hover:bg-blue-50 text-sm font-medium px-3 py-2 rounded-lg transition-colors min-h-[44px]">
+            <RefreshCw className="w-4 h-4" />
+            <span className="hidden sm:inline">Sync Outlook</span>
+          </button>
+          <button onClick={handleExportFullICS} className="flex items-center gap-1.5 border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm font-medium px-3 py-2 rounded-lg transition-colors min-h-[44px]">
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">Exporter tout (.ics)</span>
+          </button>
+          <button onClick={() => openNewEvent()} className="flex items-center gap-1 sm:gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors min-h-[44px]">
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Ajouter un événement</span>
             <span className="sm:hidden">Ajouter</span>
@@ -249,35 +303,42 @@ export default function CalendarView() {
           <div className="grid grid-cols-7">
             {days.map((day, i) => {
               const dayEvents = getEventsForDay(day);
+              const dayTasks = getTasksForDay(day);
               const inMonth = isSameMonth(day, currentMonth);
               const todayDay = isToday(day);
               const selected = selectedDay && isSameDay(day, selectedDay);
+              const totalItems = dayEvents.length + dayTasks.length;
               return (
                 <div
                   key={i}
                   onClick={() => { setSelectedDay(day); openNewEvent(day); }}
-                  className={`min-h-[60px] sm:min-h-[100px] border-b border-r border-gray-100 p-1 sm:p-2 cursor-pointer hover:bg-gray-50 transition-colors ${
-                    !inMonth ? 'bg-gray-50/50' : ''
-                  } ${selected ? 'bg-green-50' : ''}`}
+                  className={`min-h-[60px] sm:min-h-[100px] border-b border-r border-gray-100 p-1 sm:p-2 cursor-pointer hover:bg-gray-50 transition-colors ${!inMonth ? 'bg-gray-50/50' : ''} ${selected ? 'bg-green-50' : ''}`}
                 >
-                  <div className={`text-xs sm:text-sm font-medium w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full mb-0.5 sm:mb-1 ${
-                    todayDay ? 'bg-green-600 text-white' : inMonth ? 'text-gray-700' : 'text-gray-300'
-                  }`}>
+                  <div className={`text-xs sm:text-sm font-medium w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full mb-0.5 sm:mb-1 ${todayDay ? 'bg-green-600 text-white' : inMonth ? 'text-gray-700' : 'text-gray-300'}`}>
                     {format(day, 'd')}
                   </div>
                   <div className="space-y-0.5">
                     {dayEvents.slice(0, 2).map(event => (
-                      <button
-                        key={event.id}
-                        onClick={e => { e.stopPropagation(); openEditEvent(event); }}
-                        className="w-full text-left text-xs px-1 sm:px-1.5 py-0.5 rounded truncate text-white font-medium hover:opacity-80 transition-opacity line-clamp-1"
-                        style={{ backgroundColor: event.color }}
-                      >
+                      <button key={event.id} onClick={e => { e.stopPropagation(); openEditEvent(event); }}
+                        className="w-full text-left text-xs px-1 sm:px-1.5 py-0.5 rounded truncate text-white font-medium hover:opacity-80 transition-opacity"
+                        style={{ backgroundColor: event.color }}>
                         {event.title}
                       </button>
                     ))}
-                    {dayEvents.length > 2 && (
-                      <p className="text-xs text-gray-400 pl-1">+{dayEvents.length - 2}</p>
+                    {dayTasks.slice(0, Math.max(0, 2 - dayEvents.length)).map(task => {
+                      const ws = workstreams.find(w => w.id === task.workstreamId);
+                      return (
+                        <button key={task.id}
+                          onClick={e => { e.stopPropagation(); setTaskMenu({ task, x: e.clientX, y: e.clientY }); }}
+                          className="w-full text-left text-xs px-1 sm:px-1.5 py-0.5 rounded truncate font-medium flex items-center gap-0.5 hover:opacity-80"
+                          style={{ backgroundColor: TASK_COLOR + '22', color: TASK_COLOR }}>
+                          <CheckSquare className="w-2.5 h-2.5 shrink-0" />
+                          <span className="truncate">{ws ? `[${ws.name.slice(0,6)}] ` : ''}{task.title}</span>
+                        </button>
+                      );
+                    })}
+                    {totalItems > 2 && (
+                      <p className="text-xs text-gray-400 pl-1">+{totalItems - 2}</p>
                     )}
                   </div>
                 </div>
@@ -461,6 +522,110 @@ export default function CalendarView() {
           </div>
         </div>
       )}
+
+      {/* Outlook sync modal */}
+      {showOutlookModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4">
+          <div className="bg-white sm:rounded-2xl rounded-t-2xl shadow-2xl w-full sm:max-w-lg flex flex-col max-h-[95vh] sm:max-h-[90vh]">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <RefreshCw className="w-5 h-5 text-blue-600" />
+                Synchroniser avec Outlook
+              </h3>
+              <button onClick={() => setShowOutlookModal(false)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
+                <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                <p className="text-sm text-blue-800">Le fichier ICS contient tous les événements <strong>et toutes les tâches avec dates</strong>. Outlook l'importe en quelques secondes.</p>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-3">Importer dans Outlook (bureau)</h4>
+                <ol className="space-y-2 text-sm text-gray-700">
+                  <li className="flex gap-2"><span className="font-bold text-green-600 shrink-0">1.</span>Cliquez sur <strong>"Télécharger le fichier ICS"</strong> ci-dessous</li>
+                  <li className="flex gap-2"><span className="font-bold text-green-600 shrink-0">2.</span>Dans Outlook : <strong>Fichier → Ouvrir et exporter → Importer/Exporter</strong></li>
+                  <li className="flex gap-2"><span className="font-bold text-green-600 shrink-0">3.</span>Choisir <strong>"Importer un fichier iCalendar (.ics)"</strong></li>
+                  <li className="flex gap-2"><span className="font-bold text-green-600 shrink-0">4.</span>Sélectionnez le fichier téléchargé → <strong>Importer</strong></li>
+                </ol>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-3">Importer dans Outlook (web / outlook.com)</h4>
+                <ol className="space-y-2 text-sm text-gray-700">
+                  <li className="flex gap-2"><span className="font-bold text-blue-600 shrink-0">1.</span>Téléchargez le fichier ICS</li>
+                  <li className="flex gap-2"><span className="font-bold text-blue-600 shrink-0">2.</span>Allez sur <strong>outlook.com</strong> → Calendrier</li>
+                  <li className="flex gap-2"><span className="font-bold text-blue-600 shrink-0">3.</span>Cliquez sur <strong>"Ajouter un calendrier" → "Télécharger un calendrier"</strong></li>
+                  <li className="flex gap-2"><span className="font-bold text-blue-600 shrink-0">4.</span>Sélectionnez le fichier .ics</li>
+                </ol>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                <strong>Mise à jour :</strong> pour synchroniser les nouvelles tâches et événements, re-téléchargez et re-importez le fichier ICS. Les événements existants seront mis à jour automatiquement (même UID).
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-4 sm:px-6 py-4 border-t border-gray-100">
+              <button onClick={() => setShowOutlookModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors min-h-[44px]">Fermer</button>
+              <button onClick={() => { handleExportFullICS(); setShowOutlookModal(false); }}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors min-h-[44px]">
+                <Download className="w-4 h-4" />
+                Télécharger le fichier ICS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task context menu */}
+      {taskMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setTaskMenu(null)} />
+          <div
+            className="fixed z-50 bg-white border border-gray-200 rounded-xl shadow-xl py-1 min-w-[180px]"
+            style={{ left: Math.min(taskMenu.x, window.innerWidth - 200), top: Math.min(taskMenu.y, window.innerHeight - 150) }}
+          >
+            <div className="px-3 py-2 border-b border-gray-100">
+              <p className="text-sm font-semibold text-gray-800 truncate">{taskMenu.task.title}</p>
+              <p className="text-xs text-gray-400">{workstreams.find(w => w.id === taskMenu.task.workstreamId)?.name}</p>
+            </div>
+            <button
+              onClick={() => { setView({ type: 'workspace', workstreamId: taskMenu.task.workstreamId }); setTaskMenu(null); }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors min-h-[44px]"
+            >
+              <FolderOpen className="w-4 h-4 text-green-600" />
+              Accéder à l'espace de travail
+            </button>
+            <button
+              onClick={() => { setView({ type: 'workstream', id: taskMenu.task.workstreamId }); setTaskMenu(null); }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors min-h-[44px]"
+            >
+              <Pencil className="w-4 h-4 text-blue-600" />
+              Modifier la tâche
+            </button>
+            <button
+              onClick={() => setTaskMenu(null)}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors min-h-[44px] border-t border-gray-100"
+            >
+              <X className="w-4 h-4" />
+              Fermer
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-xs text-gray-500">
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: DEFAULT_COLOR }} />
+          Événements
+        </span>
+        <span className="flex items-center gap-1">
+          <CheckSquare className="w-3 h-3" style={{ color: TASK_COLOR }} />
+          Tâches du projet
+        </span>
+      </div>
     </div>
   );
 }
