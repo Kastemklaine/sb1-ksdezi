@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Users, FileText, Network, LogOut, Menu, X,
-  ChevronDown, ChevronRight, Settings, Bell, MessageSquare, Calendar
+  ChevronDown, ChevronRight, Settings, Bell, MessageSquare, Calendar, FolderKanban
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useProjectStore } from '../../store/useProjectStore';
+import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { View } from '../../App';
@@ -25,14 +25,18 @@ const COLOR_HEX: Record<string, string> = {
   'bg-purple-600': '#9333ea',
   'bg-indigo-600': '#4f46e5',
   'bg-cyan-500': '#06b6d4',
+  'bg-orange-500': '#f97316',
+  'bg-emerald-600': '#059669',
+  'bg-blue-600': '#2563eb',
+  'bg-gray-500': '#6b7280',
 };
 
 export default function Layout({ view, setView, children }: Props) {
   const currentUser = useAuthStore(s => s.currentUser);
   const logout = useAuthStore(s => s.logout);
-  const workstreams = useProjectStore(s => s.workstreams);
-  const projectName = useProjectStore(s => s.projectName);
-  const projectSubtitle = useProjectStore(s => s.projectSubtitle);
+  const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
+  const projectName = useProjectStore(s => curProject(s)?.name ?? '');
+  const projectSubtitle = useProjectStore(s => curProject(s)?.subtitle ?? '');
   // On mobile: drawer closed by default. On tablet/desktop: open by default.
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [wsExpanded, setWsExpanded] = useState(true);
@@ -113,6 +117,7 @@ export default function Layout({ view, setView, children }: Props) {
     if (view.type === 'settings') return 'Paramètres';
     if (view.type === 'messaging') return 'Messagerie';
     if (view.type === 'calendar') return 'Agenda';
+    if (view.type === 'projects') return 'Projets';
     return '';
   };
 
@@ -182,6 +187,7 @@ export default function Layout({ view, setView, children }: Props) {
           {navItem('Agenda', Calendar, { type: 'calendar' })}
           {currentUser?.role === 'superadmin' && navItem('Utilisateurs', Users, { type: 'users' })}
           {currentUser?.role === 'superadmin' && navItem('Paramètres', Settings, { type: 'settings' })}
+          {currentUser?.role === 'superadmin' && navItem('Projets', FolderKanban, { type: 'projects' })}
 
           {/* Workstreams section */}
           <div className="pt-3">

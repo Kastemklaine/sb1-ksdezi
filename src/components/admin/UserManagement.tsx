@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, X, Pencil, Trash2, Shield, User, Crown } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useProjectStore } from '../../store/useProjectStore';
+import { useProjectStore, curProject } from '../../store/useProjectStore';
 import type { Role, User as UserType } from '../../types';
 
 const ROLE_CONFIG: Record<Role, { label: string; icon: React.ElementType; color: string }> = {
@@ -22,7 +22,7 @@ const EMPTY_FORM: FormData = { name: '', email: '', role: 'membre', workstreamId
 
 export default function UserManagement() {
   const { users, createUser, updateUser, deleteUser } = useAuthStore();
-  const workstreams = useProjectStore(s => s.workstreams);
+  const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
   const currentUser = useAuthStore(s => s.currentUser);
 
   const [showModal, setShowModal] = useState(false);

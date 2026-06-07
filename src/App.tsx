@@ -10,6 +10,7 @@ import GovernanceView from './components/governance/GovernanceView';
 import SettingsView from './components/admin/SettingsView';
 import MessagingView from './components/messaging/MessagingView';
 import CalendarView from './components/calendar/CalendarView';
+import ProjectsView from './components/projects/ProjectsView';
 
 export type View =
   | { type: 'dashboard' }
@@ -19,7 +20,8 @@ export type View =
   | { type: 'governance' }
   | { type: 'settings' }
   | { type: 'messaging' }
-  | { type: 'calendar' };
+  | { type: 'calendar' }
+  | { type: 'projects' };
 
 export default function App() {
   const currentUser = useAuthStore(s => s.currentUser);
@@ -37,6 +39,7 @@ export default function App() {
       {view.type === 'settings' && <SettingsView />}
       {view.type === 'messaging' && <MessagingView />}
       {view.type === 'calendar' && <CalendarView />}
+      {view.type === 'projects' && <ProjectsView />}
     </Layout>
   );
 }

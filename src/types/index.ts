@@ -52,3 +52,14 @@ export interface FinalPage {
   updatedAt: string;
   updatedBy: string;
 }
+
+export interface Project {
+  id: string;
+  name: string;
+  subtitle: string;
+  workstreams: Workstream[];
+  tasks: Task[];
+  governance: GovernanceInstance[];
+  finalPage: FinalPage;
+  createdAt: string;
+}

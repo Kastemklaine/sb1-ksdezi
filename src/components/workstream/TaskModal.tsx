@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
-import { useProjectStore } from '../../store/useProjectStore';
+import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RichTextEditor from '../editor/RichTextEditor';
 import type { Task, TaskStatus } from '../../types';
@@ -20,7 +20,11 @@ interface Props {
 }
 
 export default function TaskModal({ workstreamId, task, defaultStatus, onClose }: Props) {
-  const { createTask, updateTask, deleteTask, tasks, workstreams } = useProjectStore();
+  const createTask = useProjectStore(s => s.createTask);
+  const updateTask = useProjectStore(s => s.updateTask);
+  const deleteTask = useProjectStore(s => s.deleteTask);
+  const tasks = useProjectStore(s => curProject(s)?.tasks ?? []);
+  const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
   const users = useAuthStore(s => s.users);
   const currentUser = useAuthStore(s => s.currentUser);
 

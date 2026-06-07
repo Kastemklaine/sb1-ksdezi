@@ -1,5 +1,5 @@
 import { Plus, Clock, CheckCircle2, Ban, AlertTriangle } from 'lucide-react';
-import { useProjectStore } from '../../store/useProjectStore';
+import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Task, TaskStatus } from '../../types';
 import { format, parseISO } from 'date-fns';
@@ -62,7 +62,7 @@ interface Props {
 }
 
 export default function KanbanBoard({ workstreamId: _workstreamId, tasks, onOpenTask, onCreateTask }: Props) {
-  const allTasks = useProjectStore(s => s.tasks);
+  const allTasks = useProjectStore(s => curProject(s)?.tasks ?? []);
   const users = useAuthStore(s => s.users);
   const currentUser = useAuthStore(s => s.currentUser);
   const canEdit = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';

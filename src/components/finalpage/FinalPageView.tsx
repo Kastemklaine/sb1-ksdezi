@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { FileText, Lock, Pencil, Save } from 'lucide-react';
-import { useProjectStore } from '../../store/useProjectStore';
+import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RichTextEditor from '../editor/RichTextEditor';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 export default function FinalPageView() {
-  const { finalPage, updateFinalPage } = useProjectStore();
+  const finalPage = useProjectStore(s => curProject(s)?.finalPage ?? { content: '', updatedAt: '', updatedBy: '' });
+  const updateFinalPage = useProjectStore(s => s.updateFinalPage);
   const currentUser = useAuthStore(s => s.currentUser);
   const users = useAuthStore(s => s.users);
   const isSuperAdmin = currentUser?.role === 'superadmin';

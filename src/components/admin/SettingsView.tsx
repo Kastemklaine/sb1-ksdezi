@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Save, Settings, FolderKanban, Plus, Trash2, AlertTriangle } from 'lucide-react';
-import { useProjectStore } from '../../store/useProjectStore';
+import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Workstream } from '../../types';
 
@@ -72,12 +72,12 @@ const DEFAULT_NEW_WS = {
 
 export default function SettingsView() {
   const [tab, setTab] = useState<Tab>('workstreams');
-  const workstreams = useProjectStore(s => s.workstreams);
+  const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
   const updateWorkstream = useProjectStore(s => s.updateWorkstream);
   const createWorkstream = useProjectStore(s => s.createWorkstream);
   const deleteWorkstream = useProjectStore(s => s.deleteWorkstream);
-  const projectName = useProjectStore(s => s.projectName);
-  const projectSubtitle = useProjectStore(s => s.projectSubtitle);
+  const projectName = useProjectStore(s => curProject(s)?.name ?? '');
+  const projectSubtitle = useProjectStore(s => curProject(s)?.subtitle ?? '');
   const updateProjectInfo = useProjectStore(s => s.updateProjectInfo);
   const users = useAuthStore(s => s.users);
 

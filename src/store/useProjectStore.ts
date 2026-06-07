@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuid } from 'uuid';
-import type { Task, Workstream, GovernanceInstance, FinalPage, TaskStatus } from '../types';
+import type { Task, Workstream, GovernanceInstance, TaskStatus, Project } from '../types';
 
 const WORKSTREAMS: Workstream[] = [
   { id: 'ws1', name: 'Communication', color: 'bg-yellow-400', textColor: 'text-yellow-900', description: 'Stratégie et actions de communication du projet', notes: '', icon: 'Megaphone', instance: 'both', assigneeIds: [] },
@@ -15,18 +15,28 @@ const WORKSTREAMS: Workstream[] = [
   { id: 'ws9', name: 'Mobilité, voirie & accessibilité', color: 'bg-orange-500', textColor: 'text-white', description: 'Accessibilité des cheminements, voirie et mobilité douce', notes: '', icon: 'Car', instance: 'cotec', assigneeIds: [] },
 ];
 
-const GOVERNANCE: GovernanceInstance[] = [
-  { id: 'gov1', name: 'COPIL', description: 'Comité de Pilotage — décisions stratégiques et validation des grandes orientations du projet', memberIds: ['u1', 'u2'], workstreamIds: ['ws1', 'ws2'] },
-  { id: 'gov2', name: 'COTEC', description: 'Comité Technique — suivi de la mise en œuvre opérationnelle et coordination des actions', memberIds: ['u2', 'u3'], workstreamIds: ['ws3', 'ws6', 'ws7', 'ws8'] },
-];
+const DEFAULT_PROJECT: Project = {
+  id: 'proj1',
+  name: "Ville à hauteur d'enfant ; handicaps",
+  subtitle: 'Vers la 4e fleur',
+  workstreams: WORKSTREAMS,
+  tasks: [],
+  governance: [
+    { id: 'gov1', name: 'COPIL', description: 'Comité de Pilotage — décisions stratégiques et validation des grandes orientations du projet', memberIds: ['u1', 'u2'], workstreamIds: ['ws1', 'ws2'] },
+    { id: 'gov2', name: 'COTEC', description: 'Comité Technique — suivi de la mise en œuvre opérationnelle et coordination des actions', memberIds: ['u2', 'u3'], workstreamIds: ['ws3', 'ws6', 'ws7', 'ws8'] },
+  ],
+  finalPage: { content: '<p>La page résultat du projet sera publiée ici par les super administrateurs.</p>', updatedAt: new Date().toISOString(), updatedBy: '' },
+  createdAt: new Date().toISOString(),
+};
 
 interface ProjectState {
-  workstreams: Workstream[];
-  tasks: Task[];
-  governance: GovernanceInstance[];
-  finalPage: FinalPage;
-  projectName: string;
-  projectSubtitle: string;
+  projects: Project[];
+  currentProjectId: string;
+  // Project CRUD
+  createProject: (name: string, subtitle: string) => void;
+  deleteProject: (id: string) => void;
+  switchProject: (id: string) => void;
+  // Current project mutations
   updateProjectInfo: (name: string, subtitle: string) => void;
   updateWorkstream: (id: string, data: Partial<Workstream>) => void;
   createWorkstream: (data: Omit<Workstream, 'id'>) => void;
@@ -40,55 +50,115 @@ interface ProjectState {
   updateGovernance: (id: string, data: Partial<GovernanceInstance>) => void;
 }
 
+type SetFn = (partial: ProjectState | Partial<ProjectState> | ((state: ProjectState) => ProjectState | Partial<ProjectState>), replace?: boolean) => void;
+
+// Helper: update current project fields
+const updateCur = (set: SetFn, updater: (p: Project) => Partial<Project>) => {
+  set((s: ProjectState) => ({
+    projects: s.projects.map(p =>
+      p.id === s.currentProjectId ? { ...p, ...updater(p) } : p
+    )
+  }));
+};
+
+// Exported selector helper
+export const curProject = (s: ProjectState) =>
+  s.projects.find(p => p.id === s.currentProjectId)!;
+
 export const useProjectStore = create<ProjectState>()(
   persist(
-    (set) => ({
-      workstreams: WORKSTREAMS,
-      tasks: [],
-      governance: GOVERNANCE,
-      finalPage: { content: '<p>La page résultat du projet sera publiée ici par les super administrateurs.</p>', updatedAt: new Date().toISOString(), updatedBy: '' },
-      projectName: "Ville à hauteur d'enfant ; handicaps",
-      projectSubtitle: 'Vers la 4e fleur',
+    (set: SetFn) => ({
+      projects: [DEFAULT_PROJECT],
+      currentProjectId: 'proj1',
+
+      createProject: (name, subtitle) => {
+        const project: Project = {
+          id: uuid(),
+          name,
+          subtitle,
+          workstreams: [],
+          tasks: [],
+          governance: [],
+          finalPage: { content: '', updatedAt: new Date().toISOString(), updatedBy: '' },
+          createdAt: new Date().toISOString(),
+        };
+        set(s => ({ projects: [...s.projects, project], currentProjectId: project.id }));
+      },
+
+      deleteProject: (id) => {
+        set(s => {
+          const remaining = s.projects.filter(p => p.id !== id);
+          const newCurrent = s.currentProjectId === id
+            ? (remaining[0]?.id ?? '')
+            : s.currentProjectId;
+          return { projects: remaining, currentProjectId: newCurrent };
+        });
+      },
+
+      switchProject: (id) => set({ currentProjectId: id }),
+
       updateProjectInfo: (name, subtitle) => {
-        set({ projectName: name, projectSubtitle: subtitle });
+        updateCur(set, () => ({ name, subtitle }));
       },
+
       updateWorkstream: (id, data) => {
-        set(state => ({ workstreams: state.workstreams.map(ws => ws.id === id ? { ...ws, ...data } : ws) }));
-      },
-      createWorkstream: (data) => {
-        const ws: Workstream = { ...data, id: uuid() };
-        set(state => ({ workstreams: [...state.workstreams, ws] }));
-      },
-      deleteWorkstream: (id) => {
-        set(state => ({
-          workstreams: state.workstreams.filter(ws => ws.id !== id),
-          tasks: state.tasks.filter(t => t.workstreamId !== id),
+        updateCur(set, p => ({
+          workstreams: p.workstreams.map(ws => ws.id === id ? { ...ws, ...data } : ws)
         }));
       },
-      updateWorkstreamNotes: (workstreamId, notes) => {
-        set(state => ({ workstreams: state.workstreams.map(ws => ws.id === workstreamId ? { ...ws, notes } : ws) }));
+
+      createWorkstream: (data) => {
+        const ws: Workstream = { ...data, id: uuid() };
+        updateCur(set, p => ({ workstreams: [...p.workstreams, ws] }));
       },
+
+      deleteWorkstream: (id) => {
+        updateCur(set, p => ({
+          workstreams: p.workstreams.filter(ws => ws.id !== id),
+          tasks: p.tasks.filter(t => t.workstreamId !== id),
+        }));
+      },
+
+      updateWorkstreamNotes: (workstreamId, notes) => {
+        updateCur(set, p => ({
+          workstreams: p.workstreams.map(ws => ws.id === workstreamId ? { ...ws, notes } : ws)
+        }));
+      },
+
       createTask: (data) => {
         const task: Task = { ...data, id: uuid(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-        set(state => ({ tasks: [...state.tasks, task] }));
+        updateCur(set, p => ({ tasks: [...p.tasks, task] }));
         return task;
       },
+
       updateTask: (id, data) => {
-        set(state => ({ tasks: state.tasks.map(t => t.id === id ? { ...t, ...data, updatedAt: new Date().toISOString() } : t) }));
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === id ? { ...t, ...data, updatedAt: new Date().toISOString() } : t)
+        }));
       },
+
       deleteTask: (id) => {
-        set(state => ({ tasks: state.tasks.filter(t => t.id !== id) }));
+        updateCur(set, p => ({ tasks: p.tasks.filter(t => t.id !== id) }));
       },
+
       updateTaskStatus: (id, status) => {
-        set(state => ({ tasks: state.tasks.map(t => t.id === id ? { ...t, status, updatedAt: new Date().toISOString() } : t) }));
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === id ? { ...t, status, updatedAt: new Date().toISOString() } : t)
+        }));
       },
+
       updateFinalPage: (content, userId) => {
-        set({ finalPage: { content, updatedAt: new Date().toISOString(), updatedBy: userId } });
+        updateCur(set, () => ({
+          finalPage: { content, updatedAt: new Date().toISOString(), updatedBy: userId }
+        }));
       },
+
       updateGovernance: (id, data) => {
-        set(state => ({ governance: state.governance.map(g => g.id === id ? { ...g, ...data } : g) }));
+        updateCur(set, p => ({
+          governance: p.governance.map(g => g.id === id ? { ...g, ...data } : g)
+        }));
       },
     }),
-    { name: 'project-store' }
+    { name: 'project-store-v2' }
   )
 );

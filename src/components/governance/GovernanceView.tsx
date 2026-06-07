@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Network, Users, Layers, Pencil, Save, X } from 'lucide-react';
-import { useProjectStore } from '../../store/useProjectStore';
+import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { GovernanceInstance } from '../../types';
 
 export default function GovernanceView() {
-  const { governance, workstreams, updateGovernance } = useProjectStore();
+  const governance = useProjectStore(s => curProject(s)?.governance ?? []);
+  const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
+  const updateGovernance = useProjectStore(s => s.updateGovernance);
   const { users, currentUser } = useAuthStore();
   const isSuperAdmin = currentUser?.role === 'superadmin';
 

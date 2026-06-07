@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, AlertTriangle, CheckCircle2, Clock, Ban, ChevronDown, LayoutList, Kanban } from 'lucide-react';
-import { useProjectStore } from '../../store/useProjectStore';
+import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RichTextEditor from '../editor/RichTextEditor';
 import TaskModal from './TaskModal';
@@ -34,8 +34,8 @@ interface Props {
 type ViewMode = 'table' | 'kanban';
 
 export default function WorkstreamDetail({ workstreamId }: Props) {
-  const workstreams = useProjectStore(s => s.workstreams);
-  const tasks = useProjectStore(s => s.tasks);
+  const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
+  const tasks = useProjectStore(s => curProject(s)?.tasks ?? []);
   const updateWorkstreamNotes = useProjectStore(s => s.updateWorkstreamNotes);
   const users = useAuthStore(s => s.users);
   const currentUser = useAuthStore(s => s.currentUser);

@@ -1,5 +1,5 @@
 import { Megaphone, Settings, Heart, BookOpen, MapPin, Flower2, Building2, Users, TrendingUp, ArrowRight, Car, Trash2, Bike, TreePine, Accessibility } from 'lucide-react';
-import { useProjectStore } from '../../store/useProjectStore';
+import { useProjectStore, curProject } from '../../store/useProjectStore';
 import type { View } from '../../App';
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -22,9 +22,9 @@ interface Props {
 }
 
 export default function Dashboard({ setView }: Props) {
-  const workstreams = useProjectStore(s => s.workstreams);
-  const tasks = useProjectStore(s => s.tasks);
-  const projectSubtitle = useProjectStore(s => s.projectSubtitle);
+  const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
+  const tasks = useProjectStore(s => curProject(s)?.tasks ?? []);
+  const projectSubtitle = useProjectStore(s => curProject(s)?.subtitle ?? '');
 
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter(t => t.status === 'done').length;

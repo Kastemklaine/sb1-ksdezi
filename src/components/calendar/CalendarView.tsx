@@ -4,7 +4,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useProjectStore } from '../../store/useProjectStore';
+import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { Calendar, Plus, X, ChevronLeft, ChevronRight, Loader2, Download, Trash2 } from 'lucide-react';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
@@ -83,7 +83,7 @@ function generateICS(event: CalendarEvent): string {
 export default function CalendarView() {
   const currentUser = useAuthStore(s => s.currentUser);
   const users = useAuthStore(s => s.users);
-  const workstreams = useProjectStore(s => s.workstreams);
+  const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
