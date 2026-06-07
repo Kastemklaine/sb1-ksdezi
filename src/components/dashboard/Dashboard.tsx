@@ -1,9 +1,20 @@
-import { Megaphone, Settings, Heart, BookOpen, MapPin, Flower2, Building2, Users, TrendingUp } from 'lucide-react';
+import { Megaphone, Settings, Heart, BookOpen, MapPin, Flower2, Building2, Users, TrendingUp, ArrowRight } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 import type { View } from '../../App';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Megaphone, Settings, Heart, BookOpen, MapPin, Flower2, Building2, Users,
+};
+
+const COLOR_HEX: Record<string, string> = {
+  'bg-yellow-400': '#facc15',
+  'bg-lime-600': '#65a30d',
+  'bg-teal-500': '#14b8a6',
+  'bg-red-500': '#ef4444',
+  'bg-pink-500': '#ec4899',
+  'bg-purple-600': '#9333ea',
+  'bg-indigo-600': '#4f46e5',
+  'bg-cyan-500': '#06b6d4',
 };
 
 interface Props {
@@ -13,97 +24,157 @@ interface Props {
 export default function Dashboard({ setView }: Props) {
   const workstreams = useProjectStore(s => s.workstreams);
   const tasks = useProjectStore(s => s.tasks);
+  const projectSubtitle = useProjectStore(s => s.projectSubtitle);
 
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter(t => t.status === 'done').length;
-  const totalBudget = tasks.reduce((acc, t) => acc + (t.budget || 0), 0);
+  const inProgressTasks = tasks.filter(t => t.status === 'inprogress').length;
   const blockedTasks = tasks.filter(t => t.status === 'blocked').length;
+  const totalBudget = tasks.reduce((acc, t) => acc + (t.budget || 0), 0);
+  const progressPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
+      {/* Page title */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-        <p className="text-gray-500 mt-1">Vue d'ensemble — Vers la 4e fleur</p>
+        <p className="text-gray-500 mt-1 text-sm">{projectSubtitle}</p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label="Tâches totales" value={totalTasks} color="text-blue-600" bg="bg-blue-50" />
-        <KpiCard label="Tâches terminées" value={doneTasks} color="text-green-600" bg="bg-green-50" />
-        <KpiCard label="Tâches bloquées" value={blockedTasks} color="text-red-600" bg="bg-red-50" />
-        <KpiCard label="Budget total" value={`${totalBudget.toLocaleString('fr-FR')} €`} color="text-purple-600" bg="bg-purple-50" />
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard
+          label="Tâches totales"
+          value={totalTasks}
+          sub="dans le projet"
+          accentColor="#6366f1"
+          lightBg="#eef2ff"
+        />
+        <KpiCard
+          label="En cours"
+          value={inProgressTasks}
+          sub="tâches actives"
+          accentColor="#3b82f6"
+          lightBg="#eff6ff"
+        />
+        <KpiCard
+          label="Terminées"
+          value={doneTasks}
+          sub={`${progressPct}% complété`}
+          accentColor="#00c875"
+          lightBg="#f0fdf4"
+        />
+        <KpiCard
+          label="Bloquées"
+          value={blockedTasks}
+          sub="nécessitent attention"
+          accentColor="#ef4444"
+          lightBg="#fff1f2"
+        />
       </div>
 
-      {/* Progress global */}
+      {/* Global progress bar */}
       {totalTasks > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-2">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              <span className="font-medium text-gray-800">Avancement global</span>
+              <TrendingUp className="w-4 h-4 text-[#00c875]" />
+              <span className="font-semibold text-gray-800 text-sm">Avancement global du projet</span>
             </div>
-            <span className="text-sm font-bold text-green-600">{Math.round((doneTasks / totalTasks) * 100)}%</span>
+            <span className="text-sm font-bold text-[#00c875]">{progressPct}%</span>
           </div>
-          <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-green-500 rounded-full transition-all"
-              style={{ width: `${(doneTasks / totalTasks) * 100}%` }}
+              className="h-full rounded-full transition-all"
+              style={{ width: `${progressPct}%`, backgroundColor: '#00c875' }}
             />
+          </div>
+          <div className="flex items-center gap-6 mt-3 text-xs text-gray-500">
+            <span><span className="font-semibold text-gray-700">{doneTasks}</span> terminées</span>
+            <span><span className="font-semibold text-gray-700">{inProgressTasks}</span> en cours</span>
+            <span><span className="font-semibold text-gray-700">{blockedTasks}</span> bloquées</span>
+            {totalBudget > 0 && <span>Budget: <span className="font-semibold text-gray-700">{totalBudget.toLocaleString('fr-FR')} €</span></span>}
           </div>
         </div>
       )}
 
-      {/* Workstream cards */}
+      {/* Workstream cards — Monday.com style */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">Axes du projet</h2>
+        <h2 className="text-base font-semibold text-gray-700 mb-3 uppercase tracking-wide text-xs">Axes du projet</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {workstreams.map(ws => {
             const wsTasks = tasks.filter(t => t.workstreamId === ws.id);
             const wsDone = wsTasks.filter(t => t.status === 'done').length;
             const wsBlocked = wsTasks.filter(t => t.status === 'blocked').length;
             const wsInProgress = wsTasks.filter(t => t.status === 'inprogress').length;
+            const wsTodo = wsTasks.length - wsDone - wsBlocked - wsInProgress;
             const wsBudget = wsTasks.reduce((acc, t) => acc + (t.budget || 0), 0);
             const pct = wsTasks.length > 0 ? Math.round((wsDone / wsTasks.length) * 100) : 0;
             const Icon = ICON_MAP[ws.icon] ?? Megaphone;
+            const borderColor = COLOR_HEX[ws.color] ?? '#888';
 
             return (
               <button
                 key={ws.id}
                 onClick={() => setView({ type: 'workstream', id: ws.id })}
-                className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow text-left"
+                className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all text-left flex"
               >
-                <div className={`${ws.color} px-4 py-3 flex items-center gap-2`}>
-                  <Icon className={`w-4 h-4 ${ws.textColor}`} />
-                  <span className={`font-semibold text-sm ${ws.textColor} leading-tight`}>{ws.name}</span>
-                </div>
-                <div className="p-4 space-y-3">
-                  <p className="text-xs text-gray-500 leading-tight">{ws.description}</p>
+                {/* Colored left border — Monday.com style */}
+                <div className="w-1 shrink-0" style={{ backgroundColor: borderColor }} />
 
-                  <div className="flex flex-wrap gap-1 text-xs">
-                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{wsTasks.length - wsDone - wsBlocked - wsInProgress} à faire</span>
-                    {wsInProgress > 0 && <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{wsInProgress} en cours</span>}
-                    {wsBlocked > 0 && <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{wsBlocked} bloqué{wsBlocked > 1 ? 's' : ''}</span>}
-                    {wsDone > 0 && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{wsDone} terminé{wsDone > 1 ? 's' : ''}</span>}
+                <div className="flex-1 p-4 space-y-3 min-w-0">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${borderColor}20` }}
+                      >
+                        <Icon className="w-4 h-4" style={{ color: borderColor }} />
+                      </div>
+                      <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{ws.name}</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0 mt-0.5" />
                   </div>
 
+                  {/* Description */}
+                  <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{ws.description}</p>
+
+                  {/* Status pills */}
+                  <div className="flex flex-wrap gap-1">
+                    {wsTasks.length === 0 ? (
+                      <span className="text-xs text-gray-300 italic">Aucune tâche</span>
+                    ) : (
+                      <>
+                        {wsTodo > 0 && <StatusPill label={`${wsTodo} à faire`} color="bg-gray-100 text-gray-600" />}
+                        {wsInProgress > 0 && <StatusPill label={`${wsInProgress} en cours`} color="bg-blue-100 text-blue-700" />}
+                        {wsBlocked > 0 && <StatusPill label={`${wsBlocked} bloqué${wsBlocked > 1 ? 's' : ''}`} color="bg-red-100 text-red-700" />}
+                        {wsDone > 0 && <StatusPill label={`${wsDone} terminé${wsDone > 1 ? 's' : ''}`} color="bg-green-100 text-green-700" />}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Progress */}
                   {wsTasks.length > 0 && (
                     <div>
-                      <div className="flex justify-between text-xs text-gray-500 mb-1">
-                        <span>Avancement</span>
-                        <span className="font-medium">{pct}%</span>
+                      <div className="flex justify-between items-center text-xs text-gray-400 mb-1">
+                        <span>Progression</span>
+                        <span className="font-semibold" style={{ color: pct === 100 ? '#00c875' : '#64748b' }}>{pct}%</span>
                       </div>
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-green-500 rounded-full" style={{ width: `${pct}%` }} />
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: pct === 100 ? '#00c875' : borderColor }}
+                        />
                       </div>
                     </div>
                   )}
 
+                  {/* Budget */}
                   {wsBudget > 0 && (
-                    <p className="text-xs text-gray-500">Budget : <span className="font-medium text-gray-700">{wsBudget.toLocaleString('fr-FR')} €</span></p>
-                  )}
-
-                  {wsTasks.length === 0 && (
-                    <p className="text-xs text-gray-400 italic">Aucune tâche</p>
+                    <p className="text-xs text-gray-400">
+                      Budget : <span className="font-semibold text-gray-600">{wsBudget.toLocaleString('fr-FR')} €</span>
+                    </p>
                   )}
                 </div>
               </button>
@@ -115,11 +186,32 @@ export default function Dashboard({ setView }: Props) {
   );
 }
 
-function KpiCard({ label, value, color, bg }: { label: string; value: number | string; color: string; bg: string }) {
+function KpiCard({ label, value, sub, accentColor, lightBg }: {
+  label: string;
+  value: number | string;
+  sub: string;
+  accentColor: string;
+  lightBg: string;
+}) {
   return (
-    <div className={`${bg} rounded-xl p-4`}>
-      <p className="text-xs text-gray-500 font-medium">{label}</p>
-      <p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p>
+    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm overflow-hidden relative">
+      <div
+        className="absolute top-0 left-0 w-1 h-full rounded-l-xl"
+        style={{ backgroundColor: accentColor }}
+      />
+      <p className="text-xs text-gray-500 font-medium pl-1">{label}</p>
+      <p className="text-2xl font-bold mt-1 pl-1" style={{ color: accentColor }}>{value}</p>
+      <p className="text-xs text-gray-400 mt-0.5 pl-1">{sub}</p>
+      <div
+        className="absolute top-2 right-3 w-9 h-9 rounded-lg flex items-center justify-center text-lg font-black opacity-20"
+        style={{ backgroundColor: lightBg, color: accentColor }}
+      />
     </div>
+  );
+}
+
+function StatusPill({ label, color }: { label: string; color: string }) {
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${color}`}>{label}</span>
   );
 }

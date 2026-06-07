@@ -15,10 +15,11 @@ const STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
 interface Props {
   workstreamId: string;
   task?: Task;
+  defaultStatus?: TaskStatus;
   onClose: () => void;
 }
 
-export default function TaskModal({ workstreamId, task, onClose }: Props) {
+export default function TaskModal({ workstreamId, task, defaultStatus, onClose }: Props) {
   const { createTask, updateTask, deleteTask, tasks } = useProjectStore();
   const users = useAuthStore(s => s.users);
   const currentUser = useAuthStore(s => s.currentUser);
@@ -26,7 +27,7 @@ export default function TaskModal({ workstreamId, task, onClose }: Props) {
   const canEdit = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
 
   const [title, setTitle] = useState(task?.title ?? '');
-  const [status, setStatus] = useState<TaskStatus>(task?.status ?? 'todo');
+  const [status, setStatus] = useState<TaskStatus>(task?.status ?? defaultStatus ?? 'todo');
   const [description, setDescription] = useState(task?.description ?? '');
   const [assigneeIds, setAssigneeIds] = useState<string[]>(task?.assigneeIds ?? []);
   const [startDate, setStartDate] = useState(task?.startDate ?? '');

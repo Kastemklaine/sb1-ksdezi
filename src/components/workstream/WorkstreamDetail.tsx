@@ -1,23 +1,37 @@
 import { useState } from 'react';
-import { Plus, AlertTriangle, CheckCircle2, Clock, Ban, ChevronDown } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle2, Clock, Ban, ChevronDown, LayoutList, Kanban } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RichTextEditor from '../editor/RichTextEditor';
 import TaskModal from './TaskModal';
+import KanbanBoard from './KanbanBoard';
 import type { Task, TaskStatus } from '../../types';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-const STATUS_CONFIG: Record<TaskStatus, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-  todo: { label: 'À faire', icon: Clock, color: 'text-gray-600', bg: 'bg-gray-100' },
-  inprogress: { label: 'En cours', icon: Clock, color: 'text-blue-700', bg: 'bg-blue-100' },
-  done: { label: 'Terminé', icon: CheckCircle2, color: 'text-green-700', bg: 'bg-green-100' },
-  blocked: { label: 'Bloqué', icon: Ban, color: 'text-red-700', bg: 'bg-red-100' },
+const STATUS_CONFIG: Record<TaskStatus, { label: string; icon: React.ElementType; color: string; bg: string; dot: string }> = {
+  todo: { label: 'À faire', icon: Clock, color: 'text-gray-600', bg: 'bg-gray-100', dot: 'bg-gray-400' },
+  inprogress: { label: 'En cours', icon: Clock, color: 'text-blue-700', bg: 'bg-blue-100', dot: 'bg-blue-500' },
+  done: { label: 'Terminé', icon: CheckCircle2, color: 'text-green-700', bg: 'bg-green-100', dot: 'bg-green-500' },
+  blocked: { label: 'Bloqué', icon: Ban, color: 'text-red-700', bg: 'bg-red-100', dot: 'bg-red-500' },
+};
+
+const COLOR_HEX: Record<string, string> = {
+  'bg-yellow-400': '#facc15',
+  'bg-lime-600': '#65a30d',
+  'bg-teal-500': '#14b8a6',
+  'bg-red-500': '#ef4444',
+  'bg-pink-500': '#ec4899',
+  'bg-purple-600': '#9333ea',
+  'bg-indigo-600': '#4f46e5',
+  'bg-cyan-500': '#06b6d4',
 };
 
 interface Props {
   workstreamId: string;
 }
+
+type ViewMode = 'table' | 'kanban';
 
 export default function WorkstreamDetail({ workstreamId }: Props) {
   const workstreams = useProjectStore(s => s.workstreams);
@@ -33,7 +47,9 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
   const [filter, setFilter] = useState<TaskStatus | 'all'>('all');
   const [selectedTask, setSelectedTask] = useState<Task | undefined>(undefined);
   const [showModal, setShowModal] = useState(false);
+  const [defaultStatus, setDefaultStatus] = useState<TaskStatus>('todo');
   const [notesOpen, setNotesOpen] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
 
   const canEdit = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
 
@@ -41,7 +57,11 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
 
   const filtered = filter === 'all' ? wsTasks : wsTasks.filter(t => t.status === filter);
 
-  const openCreate = () => { setSelectedTask(undefined); setShowModal(true); };
+  const openCreate = (status: TaskStatus = 'todo') => {
+    setSelectedTask(undefined);
+    setDefaultStatus(status);
+    setShowModal(true);
+  };
   const openEdit = (t: Task) => { setSelectedTask(t); setShowModal(true); };
 
   const isBlocked = (task: Task) => task.dependsOn.some(depId => {
@@ -49,26 +69,31 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
     return dep && dep.status !== 'done';
   });
 
-  const getAssigneeNames = (ids: string[]) =>
-    ids.map(id => users.find(u => u.id === id)?.name ?? 'Inconnu').join(', ');
+  const getAssignees = (ids: string[]) =>
+    ids.map(id => users.find(u => u.id === id)).filter(Boolean) as typeof users;
 
   const formatDate = (d: string) => {
     try { return format(parseISO(d), 'd MMM yyyy', { locale: fr }); } catch { return d; }
   };
 
+  const wsColor = COLOR_HEX[ws.color] ?? '#888';
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className={`w-4 h-4 rounded-full ${ws.color} shrink-0 mt-1`} />
+          <div className="w-1 h-10 rounded-full shrink-0" style={{ backgroundColor: wsColor }} />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{ws.name}</h1>
-            <p className="text-gray-500 mt-0.5">{ws.description}</p>
+            <p className="text-gray-500 mt-0.5 text-sm">{ws.description}</p>
           </div>
         </div>
         {canEdit && (
-          <button onClick={openCreate} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shrink-0">
+          <button
+            onClick={() => openCreate()}
+            className="flex items-center gap-2 bg-[#00c875] hover:bg-[#00b368] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 shadow-sm"
+          >
             <Plus className="w-4 h-4" />
             Nouvelle tâche
           </button>
@@ -76,16 +101,16 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
       </div>
 
       {/* Notes */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
         <button
           onClick={() => setNotesOpen(o => !o)}
-          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
         >
           <span>Notes de l'axe</span>
           <ChevronDown className={`w-4 h-4 transition-transform ${notesOpen ? 'rotate-180' : ''}`} />
         </button>
         {notesOpen && (
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-4 border-t border-gray-100">
             <RichTextEditor
               content={ws.notes}
               onChange={canEdit ? (html) => updateWorkstreamNotes(ws.id, html) : undefined}
@@ -96,70 +121,170 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
         )}
       </div>
 
-      {/* Tasks */}
+      {/* Tasks section */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-800">Tâches ({wsTasks.length})</h2>
-          <div className="flex gap-1">
-            {(['all', 'todo', 'inprogress', 'done', 'blocked'] as const).map(f => (
+        {/* Tasks toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-gray-800">Tâches</h2>
+            <span className="text-xs font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{wsTasks.length}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Filter pills — only in table view */}
+            {viewMode === 'table' && (
+              <div className="flex gap-1 flex-wrap">
+                {(['all', 'todo', 'inprogress', 'done', 'blocked'] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filter === f ? 'bg-[#00c875] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    {f === 'all' ? 'Toutes' : STATUS_CONFIG[f].label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* View toggle */}
+            <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
               <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filter === f ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                onClick={() => setViewMode('table')}
+                title="Vue tableau"
+                className={`p-1.5 rounded-md transition-colors ${viewMode === 'table' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}
               >
-                {f === 'all' ? 'Toutes' : STATUS_CONFIG[f].label}
+                <LayoutList className="w-4 h-4" />
               </button>
-            ))}
+              <button
+                onClick={() => setViewMode('kanban')}
+                title="Vue kanban"
+                className={`p-1.5 rounded-md transition-colors ${viewMode === 'kanban' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                <Kanban className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
-        {filtered.length === 0 ? (
-          <div className="bg-white rounded-xl border border-dashed border-gray-300 p-8 text-center">
-            <p className="text-gray-400">Aucune tâche {filter !== 'all' ? `avec le statut "${STATUS_CONFIG[filter as TaskStatus].label}"` : '— créez la première !'}</p>
-          </div>
+        {viewMode === 'kanban' ? (
+          <KanbanBoard
+            workstreamId={workstreamId}
+            tasks={wsTasks}
+            onOpenTask={openEdit}
+            onCreateTask={openCreate}
+          />
         ) : (
-          <div className="space-y-3">
-            {filtered.map(task => {
-              const sc = STATUS_CONFIG[task.status];
-              const StatusIcon = sc.icon;
-              const blocked = isBlocked(task);
-              const depTasks = task.dependsOn.map(id => allTasks.find(t => t.id === id)).filter(Boolean) as Task[];
+          <>
+            {filtered.length === 0 ? (
+              <div className="bg-white rounded-xl border border-dashed border-gray-300 p-8 text-center shadow-sm">
+                <p className="text-gray-400">
+                  {filter !== 'all'
+                    ? `Aucune tâche avec le statut "${STATUS_CONFIG[filter as TaskStatus].label}"`
+                    : 'Aucune tâche — créez la première !'}
+                </p>
+              </div>
+            ) : (
+              /* Monday.com-style table */
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                {/* Table header */}
+                <div className="grid grid-cols-12 gap-0 bg-gray-50 border-b border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  <div className="col-span-5">Tâche</div>
+                  <div className="col-span-2">Statut</div>
+                  <div className="col-span-2 hidden md:block">Responsable(s)</div>
+                  <div className="col-span-2 hidden lg:block">Dates</div>
+                  <div className="col-span-1 text-right hidden lg:block">Budget</div>
+                </div>
 
-              return (
-                <button
-                  key={task.id}
-                  onClick={() => openEdit(task)}
-                  className="w-full bg-white rounded-xl border border-gray-200 p-4 text-left hover:shadow-sm hover:border-green-300 transition-all"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${sc.bg} ${sc.color}`}>
-                          <StatusIcon className="w-3 h-3" />
-                          {sc.label}
-                        </span>
-                        {blocked && task.status !== 'done' && (
-                          <span className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
-                            <AlertTriangle className="w-3 h-3" />
-                            Dépendance en attente
+                {/* Rows */}
+                <div className="divide-y divide-gray-100">
+                  {filtered.map((task, idx) => {
+                    const sc = STATUS_CONFIG[task.status];
+                    const StatusIcon = sc.icon;
+                    const blocked = isBlocked(task);
+                    const assignees = getAssignees(task.assigneeIds);
+
+                    return (
+                      <button
+                        key={task.id}
+                        onClick={() => openEdit(task)}
+                        className={`w-full grid grid-cols-12 gap-0 px-4 py-3 text-left transition-colors hover:bg-[#00c875]/5 items-center ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}
+                      >
+                        {/* Task name */}
+                        <div className="col-span-5 flex items-center gap-2 min-w-0 pr-2">
+                          <div className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`} />
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 truncate text-sm">{task.title}</p>
+                            {blocked && task.status !== 'done' && (
+                              <span className="flex items-center gap-1 text-xs text-orange-600 mt-0.5">
+                                <AlertTriangle className="w-3 h-3" />
+                                Dépendance
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Status pill */}
+                        <div className="col-span-2">
+                          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${sc.bg} ${sc.color}`}>
+                            <StatusIcon className="w-3 h-3" />
+                            {sc.label}
                           </span>
-                        )}
-                      </div>
-                      <h3 className="font-medium text-gray-900 truncate">{task.title}</h3>
-                      <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
-                        {task.assigneeIds.length > 0 && <span>👤 {getAssigneeNames(task.assigneeIds)}</span>}
-                        {task.startDate && <span>📅 {formatDate(task.startDate)}{task.endDate ? ` → ${formatDate(task.endDate)}` : ''}</span>}
-                        {task.budget > 0 && <span>💶 {task.budget.toLocaleString('fr-FR')} €</span>}
-                        {depTasks.length > 0 && (
-                          <span>🔗 Dépend de : {depTasks.map(d => d?.title).join(', ')}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                        </div>
+
+                        {/* Assignees */}
+                        <div className="col-span-2 hidden md:flex items-center -space-x-1">
+                          {assignees.slice(0, 3).map(u => (
+                            <div
+                              key={u.id}
+                              title={u.name}
+                              className="w-7 h-7 rounded-full bg-[#00c875] border-2 border-white flex items-center justify-center text-white text-xs font-bold shrink-0"
+                            >
+                              {u.name.charAt(0)}
+                            </div>
+                          ))}
+                          {assignees.length > 3 && (
+                            <div className="w-7 h-7 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-gray-600 text-xs font-bold">
+                              +{assignees.length - 3}
+                            </div>
+                          )}
+                          {assignees.length === 0 && <span className="text-xs text-gray-300">—</span>}
+                        </div>
+
+                        {/* Dates */}
+                        <div className="col-span-2 hidden lg:block text-xs text-gray-500">
+                          {task.startDate || task.endDate ? (
+                            <span>
+                              {task.startDate ? formatDate(task.startDate) : ''}
+                              {task.startDate && task.endDate ? ' → ' : ''}
+                              {task.endDate ? formatDate(task.endDate) : ''}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )}
+                        </div>
+
+                        {/* Budget */}
+                        <div className="col-span-1 hidden lg:block text-right text-xs font-medium text-gray-600">
+                          {task.budget > 0 ? `${task.budget.toLocaleString('fr-FR')} €` : <span className="text-gray-300">—</span>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Add task row */}
+                {canEdit && (
+                  <button
+                    onClick={() => openCreate()}
+                    className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-400 hover:text-[#00c875] hover:bg-[#00c875]/5 transition-colors border-t border-gray-100"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Ajouter une tâche
+                  </button>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -167,6 +292,7 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
         <TaskModal
           workstreamId={workstreamId}
           task={selectedTask}
+          defaultStatus={defaultStatus}
           onClose={() => setShowModal(false)}
         />
       )}
