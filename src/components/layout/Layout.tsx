@@ -153,7 +153,7 @@ export default function Layout({ view, setView, children }: Props) {
           ) : (
             <button
               onClick={() => setSidebarOpen(o => !o)}
-              className="p-1.5 rounded-lg text-gray-400 hover:bg-white/10 hover:text-white transition-colors shrink-0"
+              className="p-1.5 rounded-lg text-gray-400 hover:bg-white/10 hover:text-white transition-colors shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center"
             >
               {expanded ? <ChevronRight className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
@@ -367,13 +367,13 @@ export default function Layout({ view, setView, children }: Props) {
                           <button
                             key={size}
                             onClick={() => setFontSize(size)}
-                            className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors min-h-[36px] ${
+                            className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors min-h-[44px] ${
                               fontSize === size
                                 ? 'bg-green-600 text-white'
                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                           >
-                            {['A-', 'A', 'A+'][i]}
+                            {['A−', 'A', 'A+'][i]}
                           </button>
                         ))}
                       </div>

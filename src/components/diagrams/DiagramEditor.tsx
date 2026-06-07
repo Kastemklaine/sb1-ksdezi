@@ -16,6 +16,7 @@ import {
   type OnConnect,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { toPng } from 'html-to-image';
 import { Download, Square, Diamond, Type, ArrowRight, Trash2, Save, X } from 'lucide-react';
 
 interface DiagramEditorInnerProps {
@@ -138,9 +139,20 @@ function DiagramEditorInner({ initialNodes, initialEdges, onSave, onClose }: Dia
     );
   };
 
-  const handleExportPNG = () => {
-    // Fallback: prompt user to use print
-    alert('Pour exporter en PNG, utilisez Ctrl+P et choisissez "Enregistrer en PDF", ou faites une capture d\'écran.');
+  const handleExportPNG = async () => {
+    const flowEl = containerRef.current?.querySelector('.react-flow__viewport') as HTMLElement | null;
+    const wrapper = containerRef.current?.querySelector('.react-flow__renderer') as HTMLElement | null;
+    const target = wrapper ?? flowEl ?? containerRef.current;
+    if (!target) return;
+    try {
+      const dataUrl = await toPng(target, { backgroundColor: '#ffffff', pixelRatio: 2 });
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'schema.png';
+      a.click();
+    } catch {
+      alert('Erreur lors de l\'export PNG. Essayez d\'exporter en SVG.');
+    }
   };
 
   const handleExportSVG = () => {
