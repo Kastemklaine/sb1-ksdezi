@@ -24,6 +24,10 @@ interface ProjectState {
   tasks: Task[];
   governance: GovernanceInstance[];
   finalPage: FinalPage;
+  projectName: string;
+  projectSubtitle: string;
+  updateProjectInfo: (name: string, subtitle: string) => void;
+  updateWorkstream: (id: string, data: Partial<Workstream>) => void;
   updateWorkstreamNotes: (workstreamId: string, notes: string) => void;
   createTask: (data: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Task;
   updateTask: (id: string, data: Partial<Task>) => void;
@@ -40,6 +44,14 @@ export const useProjectStore = create<ProjectState>()(
       tasks: [],
       governance: GOVERNANCE,
       finalPage: { content: '<p>La page résultat du projet sera publiée ici par les super administrateurs.</p>', updatedAt: new Date().toISOString(), updatedBy: '' },
+      projectName: "Ville à hauteur d'enfant ; handicaps",
+      projectSubtitle: 'Vers la 4e fleur',
+      updateProjectInfo: (name, subtitle) => {
+        set({ projectName: name, projectSubtitle: subtitle });
+      },
+      updateWorkstream: (id, data) => {
+        set(state => ({ workstreams: state.workstreams.map(ws => ws.id === id ? { ...ws, ...data } : ws) }));
+      },
       updateWorkstreamNotes: (workstreamId, notes) => {
         set(state => ({ workstreams: state.workstreams.map(ws => ws.id === workstreamId ? { ...ws, notes } : ws) }));
       },

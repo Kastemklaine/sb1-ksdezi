@@ -7,13 +7,15 @@ import WorkstreamDetail from './components/workstream/WorkstreamDetail';
 import UserManagement from './components/admin/UserManagement';
 import FinalPageView from './components/finalpage/FinalPageView';
 import GovernanceView from './components/governance/GovernanceView';
+import SettingsView from './components/admin/SettingsView';
 
 export type View =
   | { type: 'dashboard' }
   | { type: 'workstream'; id: string }
   | { type: 'users' }
   | { type: 'finalpage' }
-  | { type: 'governance' };
+  | { type: 'governance' }
+  | { type: 'settings' };
 
 export default function App() {
   const currentUser = useAuthStore(s => s.currentUser);
@@ -28,6 +30,7 @@ export default function App() {
       {view.type === 'users' && <UserManagement />}
       {view.type === 'finalpage' && <FinalPageView />}
       {view.type === 'governance' && <GovernanceView />}
+      {view.type === 'settings' && <SettingsView />}
     </Layout>
   );
 }
