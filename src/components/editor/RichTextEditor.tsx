@@ -6,16 +6,24 @@ import Highlight from '@tiptap/extension-highlight';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Bold, Italic, UnderlineIcon, List, ListOrdered, AlignLeft, AlignCenter, Heading1, Heading2, CheckSquare, Highlighter } from 'lucide-react';
+import Image from '@tiptap/extension-image';
+import { Bold, Italic, UnderlineIcon, List, ListOrdered, AlignLeft, AlignCenter, Heading1, Heading2, CheckSquare, Highlighter, ImageIcon, Loader2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { storage } from '../../lib/firebase';
 
 interface Props {
   content: string;
   onChange?: (html: string) => void;
   placeholder?: string;
   readOnly?: boolean;
+  enableImageUpload?: boolean;
 }
 
-export default function RichTextEditor({ content, onChange, placeholder = 'Écrivez ici...', readOnly = false }: Props) {
+export default function RichTextEditor({ content, onChange, placeholder = 'Écrivez ici...', readOnly = false, enableImageUpload = false }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -25,11 +33,27 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Écri
       TaskItem.configure({ nested: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Placeholder.configure({ placeholder }),
+      Image.configure({ inline: false, allowBase64: false }),
     ],
     content,
     editable: !readOnly,
     onUpdate: ({ editor }) => onChange?.(editor.getHTML()),
   });
+
+  const handleImageUpload = (file: File) => {
+    if (!editor) return;
+    const storageRef = ref(storage, `images/${Date.now()}_${file.name}`);
+    const task = uploadBytesResumable(storageRef, file);
+    task.on('state_changed',
+      (snap) => setUploadProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+      (err) => { console.error(err); setUploadProgress(null); },
+      async () => {
+        const url = await getDownloadURL(task.snapshot.ref);
+        editor.chain().focus().setImage({ src: url }).run();
+        setUploadProgress(null);
+      }
+    );
+  };
 
   if (!editor) return null;
 
@@ -69,6 +93,34 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Écri
         <div className="w-px bg-gray-300 mx-1" />
         {btn(() => editor.chain().focus().setTextAlign('left').run(), editor.isActive({ textAlign: 'left' }), AlignLeft, 'Aligner à gauche')}
         {btn(() => editor.chain().focus().setTextAlign('center').run(), editor.isActive({ textAlign: 'center' }), AlignCenter, 'Centrer')}
+        {enableImageUpload && (
+          <>
+            <div className="w-px bg-gray-300 mx-1" />
+            <button
+              type="button"
+              title="Insérer une image"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadProgress !== null}
+              className="p-1.5 rounded transition-colors text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+            >
+              {uploadProgress !== null ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+            </button>
+            {uploadProgress !== null && (
+              <span className="text-xs text-gray-500 self-center ml-1">{uploadProgress}%</span>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImageUpload(file);
+                e.target.value = '';
+              }}
+            />
+          </>
+        )}
       </div>
       <div className="p-3 min-h-[120px] prose prose-sm max-w-none">
         <EditorContent editor={editor} />
