@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Plus, Trash2, X, FileText, MessageSquare, Send, ChevronDown, ChevronRight, FolderPlus, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, X, FileText, MessageSquare, Send, ChevronDown, ChevronRight, FolderPlus, ArrowLeft, GitBranch } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import SimpleRichTextEditor from './RichTextEditor';
+import RichTextEditor from '../editor/RichTextEditor';
+import DiagramEditor, { type DiagramData } from '../diagrams/DiagramEditor';
 import type { WorkspaceDocument } from '../../types';
 import type { View } from '../../App';
 
@@ -119,6 +120,7 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
 
   // Document editor overlay
   if (editingDoc) {
+    const isDiagram = editingDoc.type === 'diagram';
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center gap-3 mb-4">
@@ -133,23 +135,39 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
           <span className="text-sm text-gray-600">{workstream.name}</span>
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-4 border-b border-gray-100 flex items-center gap-3">
+            {isDiagram ? <GitBranch className="w-5 h-5 text-purple-500 shrink-0" /> : <FileText className="w-5 h-5 text-green-500 shrink-0" />}
             <input
               type="text"
               value={docTitle}
               onChange={e => setDocTitle(e.target.value)}
-              className="w-full text-xl font-bold text-gray-900 border-none outline-none bg-transparent"
-              placeholder="Titre du document"
+              className="flex-1 text-xl font-bold text-gray-900 border-none outline-none bg-transparent"
+              placeholder={isDiagram ? 'Titre du schéma' : 'Titre du document'}
             />
+            {!isDiagram && (
+              <button onClick={handleSaveDoc} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors min-h-[40px]">
+                Enregistrer
+              </button>
+            )}
           </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            <SimpleRichTextEditor
-              content={docContent}
-              onChange={setDocContent}
-              onSave={handleSaveDoc}
-              placeholder="Rédigez votre contenu..."
-            />
-          </div>
+          {isDiagram ? (
+            <div className="flex-1 min-h-0">
+              <DiagramEditor
+                initialData={(() => { try { return JSON.parse(docContent) as DiagramData; } catch { return { nodes: [], edges: [] }; } })()}
+                onSave={(data) => { setDocContent(JSON.stringify(data)); handleSaveDoc(); }}
+                onClose={() => setEditingDoc(null)}
+              />
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto p-4">
+              <RichTextEditor
+                content={docContent}
+                onChange={setDocContent}
+                placeholder="Rédigez votre contenu..."
+                enableImageUpload
+              />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -286,13 +304,22 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
                     <h3 className="font-semibold text-gray-800 text-sm">
                       Documents — {selectedSubSection ? subSections.find(s => s.id === selectedSubSection)?.name : 'Général'}
                     </h3>
-                    <button
-                      onClick={() => openNewDoc('travail')}
-                      className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors touch-manipulation min-h-[36px]"
-                    >
-                      <Plus className="w-3 h-3" />
-                      Nouveau document
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { const d: WorkspaceDocument = { id: '', workstreamId, subSectionId: selectedSubSection ?? undefined, title: 'Nouveau schéma', content: '', space: 'travail', type: 'diagram', authorId: currentUser?.id ?? '', createdAt: '', updatedAt: '' }; setEditingDoc(d); setDocTitle('Nouveau schéma'); setDocContent(''); }}
+                        className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors touch-manipulation min-h-[36px]"
+                      >
+                        <GitBranch className="w-3 h-3" />
+                        Schéma
+                      </button>
+                      <button
+                        onClick={() => openNewDoc('travail')}
+                        className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors touch-manipulation min-h-[36px]"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Document
+                      </button>
+                    </div>
                   </div>
                   <div className="flex-1 overflow-y-auto p-3 space-y-2">
                     {filteredTravailDocs.length === 0 ? (
@@ -303,7 +330,7 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
                     ) : (
                       filteredTravailDocs.map(doc => (
                         <div key={doc.id} className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 group">
-                          <FileText className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                          {doc.type === 'diagram' ? <GitBranch className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" /> : <FileText className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />}
                           <div className="flex-1 min-w-0">
                             <button
                               onClick={() => openExistingDoc(doc)}
@@ -312,7 +339,7 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
                               {doc.title}
                             </button>
                             <p className="text-xs text-gray-400 mt-0.5">
-                              Par {getUserName(doc.authorId)} — {new Date(doc.updatedAt).toLocaleDateString('fr-FR')}
+                              {doc.type === 'diagram' ? '🔷 Schéma — ' : ''}Par {getUserName(doc.authorId)} — {new Date(doc.updatedAt).toLocaleDateString('fr-FR')}
                             </p>
                           </div>
                           {isAdmin && (
@@ -394,13 +421,22 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
           <div className="flex items-center justify-between p-4 border-b border-gray-100">
             <h3 className="font-semibold text-gray-800">Dossier Final</h3>
             {isMember && (
+              <div className="flex gap-2">
+              <button
+                onClick={() => { const d: WorkspaceDocument = { id: '', workstreamId, title: 'Nouveau schéma', content: '', space: 'final', type: 'diagram', authorId: currentUser?.id ?? '', createdAt: '', updatedAt: '' }; setEditingDoc(d); setDocTitle('Nouveau schéma'); setDocContent(''); }}
+                className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors touch-manipulation min-h-[36px]"
+              >
+                <GitBranch className="w-3 h-3" />
+                Schéma
+              </button>
               <button
                 onClick={() => openNewDoc('final')}
                 className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors touch-manipulation min-h-[36px]"
               >
                 <Plus className="w-3 h-3" />
-                Nouveau document final
+                Document
               </button>
+              </div>
             )}
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4">

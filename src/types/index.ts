@@ -18,6 +18,7 @@ export interface Task {
   workstreamId: string;
   title: string;
   description: string; // HTML from Tiptap
+  notes?: string; // HTML — working notes visible to members only
   assigneeIds: string[];
   status: TaskStatus;
   startDate: string;
