@@ -78,12 +78,12 @@ export default function KanbanBoard({ workstreamId: _workstreamId, tasks, onOpen
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
       {COLUMNS.map(col => {
         const ColIcon = col.icon;
         const colTasks = tasks.filter(t => t.status === col.status);
         return (
-          <div key={col.status} className="flex flex-col min-h-[300px]">
+          <div key={col.status} className="flex flex-col min-h-[300px] min-w-[280px] md:flex-1">
             {/* Column header */}
             <div className={`flex items-center justify-between px-3 py-2.5 rounded-t-xl ${col.headerBg} border border-b-0 border-gray-200`}>
               <div className={`flex items-center gap-2 font-semibold text-sm ${col.headerText}`}>

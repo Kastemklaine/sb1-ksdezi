@@ -22,7 +22,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md px-4 py-8 sm:px-8">
         <div className="flex flex-col items-center mb-8">
           <div className="bg-green-600 rounded-full p-4 mb-4">
             <Lightbulb className="text-white w-8 h-8" />
@@ -39,9 +39,10 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="votre@email.fr"
               required
+              autoComplete="email"
             />
           </div>
           <div>
@@ -50,9 +51,10 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="••••••••"
               required
+              autoComplete="current-password"
             />
           </div>
 
@@ -65,7 +67,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 rounded-lg transition-colors disabled:opacity-50"
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 min-h-[44px] text-base"
           >
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>

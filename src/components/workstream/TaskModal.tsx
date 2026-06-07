@@ -86,16 +86,16 @@ export default function TaskModal({ workstreamId, task, defaultStatus, onClose }
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-5 border-b border-gray-200">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center sm:p-4">
+      <div className="bg-white sm:rounded-2xl rounded-t-2xl shadow-2xl w-full sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-200">
           <h2 className="text-lg font-bold text-gray-900">{task ? 'Modifier la tâche' : 'Nouvelle tâche'}</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           {blockedByDeps.length > 0 && (
             <div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800">
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -109,7 +109,7 @@ export default function TaskModal({ workstreamId, task, defaultStatus, onClose }
               value={title}
               onChange={e => setTitle(e.target.value)}
               disabled={!canEdit}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50"
               placeholder="Titre de la tâche"
             />
           </div>
@@ -123,7 +123,7 @@ export default function TaskModal({ workstreamId, task, defaultStatus, onClose }
                   type="button"
                   disabled={!canEdit}
                   onClick={() => setStatus(opt.value)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${status === opt.value ? opt.color + ' ring-2 ring-offset-1 ring-green-400' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'} disabled:cursor-default`}
+                  className={`px-3 py-2 rounded-full text-sm font-medium transition-all min-h-[44px] ${status === opt.value ? opt.color + ' ring-2 ring-offset-1 ring-green-400' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'} disabled:cursor-default`}
                 >
                   {opt.label}
                 </button>
@@ -131,23 +131,23 @@ export default function TaskModal({ workstreamId, task, defaultStatus, onClose }
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date de début</label>
               <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} disabled={!canEdit}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50" />
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date de fin</label>
               <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} disabled={!canEdit}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50" />
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50" />
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Budget (€)</label>
             <input type="number" value={budget} onChange={e => setBudget(e.target.value)} disabled={!canEdit} min="0" step="0.01"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50"
               placeholder="0" />
           </div>
 
@@ -160,7 +160,7 @@ export default function TaskModal({ workstreamId, task, defaultStatus, onClose }
                   type="button"
                   disabled={!canEdit}
                   onClick={() => toggleAssignee(u.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-all disabled:cursor-default ${assigneeIds.includes(u.id) ? 'bg-green-100 border-green-400 text-green-800 font-medium' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-sm border transition-all disabled:cursor-default min-h-[44px] ${assigneeIds.includes(u.id) ? 'bg-green-100 border-green-400 text-green-800 font-medium' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
                 >
                   <span className="w-5 h-5 rounded-full bg-green-600 text-white text-xs flex items-center justify-center font-bold">{u.name.charAt(0)}</span>
                   {u.name}
@@ -193,25 +193,25 @@ export default function TaskModal({ workstreamId, task, defaultStatus, onClose }
         </div>
 
         {canEdit && (
-          <div className="flex items-center justify-between p-5 border-t border-gray-200">
+          <div className="flex items-center justify-between p-4 sm:p-5 border-t border-gray-200">
             {task ? (
-              <button onClick={handleDelete} className="text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+              <button onClick={handleDelete} className="text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors min-h-[44px]">
                 Supprimer
               </button>
             ) : <div />}
             <div className="flex gap-3">
-              <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors min-h-[44px]">
                 Annuler
               </button>
-              <button onClick={handleSave} disabled={!title.trim()} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+              <button onClick={handleSave} disabled={!title.trim()} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 min-h-[44px]">
                 {task ? 'Enregistrer' : 'Créer la tâche'}
               </button>
             </div>
           </div>
         )}
         {!canEdit && (
-          <div className="p-5 border-t border-gray-200 flex justify-end">
-            <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+          <div className="p-4 sm:p-5 border-t border-gray-200 flex justify-end">
+            <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors min-h-[44px]">
               Fermer
             </button>
           </div>
