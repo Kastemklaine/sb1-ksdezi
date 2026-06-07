@@ -83,6 +83,25 @@ export interface CalendarEvent {
   createdAt: string;
 }
 
+export interface MessageAttachment {
+  name: string;
+  url: string; // base64 data URL or remote URL
+  type: string;
+  size: number;
+}
+
+export interface Message {
+  id: string;
+  fromId: string;
+  fromName: string;
+  toId: string | null; // null = broadcast to all
+  subject: string;
+  body: string;
+  attachments: MessageAttachment[];
+  createdAt: string;
+  readBy: string[];
+}
+
 export interface GovernanceInstance {
   id: string;
   name: string; // COPIL or COTEC
@@ -108,5 +127,6 @@ export interface Project {
   documents: WorkspaceDocument[];
   discussions: WorkspaceDiscussion[];
   events: CalendarEvent[];
+  messages: Message[];
   createdAt: string;
 }

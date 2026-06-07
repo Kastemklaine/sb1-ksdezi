@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   LayoutDashboard, Users, FileText, Network, LogOut, Menu, X,
   ChevronDown, ChevronRight, Settings, Bell, MessageSquare, Calendar, FolderKanban, ShieldCheck, FolderOpen, GitBranch
@@ -6,10 +6,9 @@ import {
 import { useFontSize } from '../../hooks/useFontSize';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
 import type { View } from '../../App';
 import TwoFactorSetup from '../profile/TwoFactorSetup';
+import QuimperleLogoK from '../ui/QuimperleLogoK';
 
 interface Props {
   view: View;
@@ -40,38 +39,19 @@ export default function Layout({ view, setView, children }: Props) {
   const projectName = useProjectStore(s => curProject(s)?.name ?? '');
   const projectSubtitle = useProjectStore(s => curProject(s)?.subtitle ?? '');
   const { current: fontSize, setFontSize } = useFontSize();
-  // On mobile: drawer closed by default. On tablet/desktop: open by default.
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const allMessages = useProjectStore(s => curProject(s)?.messages ?? []);
+  const unreadCount = currentUser
+    ? allMessages.filter(m =>
+        (m.toId === null || m.toId === currentUser.id) &&
+        m.fromId !== currentUser.id &&
+        !m.readBy.includes(currentUser.id)
+      ).length
+    : 0;
+
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
   const [wsExpanded, setWsExpanded] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [show2FA, setShow2FA] = useState(false);
-
-  // Initialise sidebar state based on screen width after mount
-  useEffect(() => {
-    if (window.innerWidth >= 1024) {
-      setSidebarOpen(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    const q = query(collection(db, 'messages'), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, (snap) => {
-      const count = snap.docs.filter(d => {
-        const data = d.data();
-        const readBy: string[] = data.readBy ?? [];
-        const fromId: string = data.fromId ?? '';
-        const toId: string | null = data.toId ?? null;
-        const isForMe = toId === null || toId === currentUser.id;
-        return isForMe && fromId !== currentUser.id && !readBy.includes(currentUser.id);
-      }).length;
-      setUnreadCount(count);
-    }, () => {
-      // Firestore not yet configured — silent fail, unread count stays 0
-    });
-    return () => unsub();
-  }, [currentUser]);
 
   const navigateTo = (v: View) => {
     setView(v);
@@ -140,11 +120,15 @@ export default function Layout({ view, setView, children }: Props) {
         {/* Logo / project name */}
         <div className={`flex items-center gap-2 px-3 py-4 border-b border-white/10 ${expanded ? 'justify-between' : 'justify-center'}`}>
           {expanded && (
-            <div className="min-w-0">
-              <p className="font-bold text-white text-xs leading-tight truncate">{projectName}</p>
-              <p className="text-[#00c875] text-xs mt-0.5 truncate">{projectSubtitle}</p>
+            <div className="flex items-center gap-2 min-w-0">
+              <QuimperleLogoK size={28} className="shrink-0" />
+              <div className="min-w-0">
+                <p className="font-bold text-white text-xs leading-tight truncate">{projectName}</p>
+                <p className="text-[#00c875] text-xs mt-0.5 truncate">{projectSubtitle}</p>
+              </div>
             </div>
           )}
+          {!expanded && <QuimperleLogoK size={24} />}
           {isMobileDrawer ? (
             <button
               onClick={() => setSidebarOpen(false)}

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Lightbulb, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, ArrowLeft } from 'lucide-react';
 import { useAuthStore, getPendingTwoFactorEmail } from '../../store/useAuthStore';
+import QuimperleLogoK from '../ui/QuimperleLogoK';
 
 type Step = 'credentials' | 'totp';
 
@@ -52,13 +53,19 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md px-4 py-8 sm:px-8">
         <div className="flex flex-col items-center mb-8">
-          <div className="bg-green-600 rounded-full p-4 mb-4">
-            {step === 'totp' ? (
+          {step === 'totp' ? (
+            <div className="bg-green-600 rounded-full p-4 mb-4">
               <ShieldCheck className="text-white w-8 h-8" />
-            ) : (
-              <Lightbulb className="text-white w-8 h-8" />
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center mb-4">
+              <QuimperleLogoK size={52} />
+              <div className="mt-2 text-center">
+                <p className="font-bold text-gray-800 text-sm tracking-widest uppercase">Quimperlé</p>
+                <p className="text-gray-400 text-xs tracking-widest uppercase">Kemperle</p>
+              </div>
+            </div>
+          )}
           <h1 className="text-2xl font-bold text-gray-900 text-center">
             {step === 'totp' ? 'Vérification 2FA' : "Ville à hauteur d'enfant"}
           </h1>

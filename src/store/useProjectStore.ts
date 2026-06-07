@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuid } from 'uuid';
-import type { Task, Workstream, GovernanceInstance, TaskStatus, Project, WorkspaceDocument, WorkspaceDiscussion, WorkstreamSubSection, CalendarEvent } from '../types';
+import type { Task, Workstream, GovernanceInstance, TaskStatus, Project, WorkspaceDocument, WorkspaceDiscussion, WorkstreamSubSection, CalendarEvent, Message, MessageAttachment } from '../types';
 
 const WORKSTREAMS: Workstream[] = [
   { id: 'ws1', name: 'Communication', color: 'bg-yellow-400', textColor: 'text-yellow-900', description: 'Stratégie et actions de communication du projet', notes: '', icon: 'Megaphone', instance: 'both', assigneeIds: [], subSections: [] },
@@ -29,6 +29,7 @@ const DEFAULT_PROJECT: Project = {
   documents: [],
   discussions: [],
   events: [],
+  messages: [],
   createdAt: new Date().toISOString(),
 };
 
@@ -62,6 +63,10 @@ interface ProjectState {
   createEvent: (data: Omit<CalendarEvent, 'id' | 'createdAt'>) => void;
   updateEvent: (id: string, data: Partial<CalendarEvent>) => void;
   deleteEvent: (id: string) => void;
+  // Messaging
+  sendMessage: (data: { fromId: string; fromName: string; toId: string | null; subject: string; body: string; attachments: MessageAttachment[] }) => void;
+  markMessageRead: (messageId: string, userId: string) => void;
+  deleteMessage: (messageId: string) => void;
 }
 
 type SetFn = (partial: ProjectState | Partial<ProjectState> | ((state: ProjectState) => ProjectState | Partial<ProjectState>), replace?: boolean) => void;
@@ -97,6 +102,7 @@ export const useProjectStore = create<ProjectState>()(
           documents: [],
           discussions: [],
           events: [],
+          messages: [],
           createdAt: new Date().toISOString(),
         };
         set(s => ({ projects: [...s.projects, project], currentProjectId: project.id }));
@@ -261,6 +267,25 @@ export const useProjectStore = create<ProjectState>()(
 
       deleteEvent: (id) => {
         updateCur(set, p => ({ events: (p.events ?? []).filter(e => e.id !== id) }));
+      },
+
+      sendMessage: (data) => {
+        const msg: Message = { ...data, id: uuid(), createdAt: new Date().toISOString(), readBy: [data.fromId] };
+        updateCur(set, p => ({ messages: [...(p.messages ?? []), msg] }));
+      },
+
+      markMessageRead: (messageId, userId) => {
+        updateCur(set, p => ({
+          messages: (p.messages ?? []).map(m =>
+            m.id === messageId && !m.readBy.includes(userId)
+              ? { ...m, readBy: [...m.readBy, userId] }
+              : m
+          ),
+        }));
+      },
+
+      deleteMessage: (messageId) => {
+        updateCur(set, p => ({ messages: (p.messages ?? []).filter(m => m.id !== messageId) }));
       },
     }),
     { name: 'project-store-v2' }
