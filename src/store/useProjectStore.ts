@@ -1,18 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuid } from 'uuid';
-import type { Task, Workstream, GovernanceInstance, TaskStatus, Project, WorkspaceDocument, WorkspaceDiscussion } from '../types';
+import type { Task, Workstream, GovernanceInstance, TaskStatus, Project, WorkspaceDocument, WorkspaceDiscussion, WorkstreamSubSection } from '../types';
 
 const WORKSTREAMS: Workstream[] = [
-  { id: 'ws1', name: 'Communication', color: 'bg-yellow-400', textColor: 'text-yellow-900', description: 'Stratégie et actions de communication du projet', notes: '', icon: 'Megaphone', instance: 'both', assigneeIds: [] },
-  { id: 'ws2', name: 'COPIL', color: 'bg-lime-600', textColor: 'text-white', description: 'Comité de Pilotage — gouvernance stratégique', notes: '', icon: 'Users', instance: 'copil', assigneeIds: [] },
-  { id: 'ws3', name: 'COTEC', color: 'bg-teal-500', textColor: 'text-white', description: 'Comité Technique — suivi opérationnel', notes: '', icon: 'Settings', instance: 'cotec', assigneeIds: [] },
-  { id: 'ws4', name: 'Participation citoyenne', color: 'bg-red-500', textColor: 'text-white', description: 'Engagement et concertation citoyenne', notes: '', icon: 'Heart', instance: 'none', assigneeIds: [] },
-  { id: 'ws5', name: 'Sensibilisation & médiation', color: 'bg-pink-500', textColor: 'text-white', description: 'Actions de sensibilisation et médiation', notes: '', icon: 'BookOpen', instance: 'none', assigneeIds: [] },
-  { id: 'ws6', name: 'Signalétique', color: 'bg-purple-600', textColor: 'text-white', description: 'Aménagement signalétique adaptée', notes: '', icon: 'MapPin', instance: 'cotec', assigneeIds: [] },
-  { id: 'ws7', name: 'Gestion différenciée, fleurissement & propreté', color: 'bg-indigo-600', textColor: 'text-white', description: 'Gestion différenciée des espaces verts, fleurissement et propreté', notes: '', icon: 'Flower2', instance: 'cotec', assigneeIds: [] },
-  { id: 'ws8', name: 'Aménagements & mobiliers urbains', color: 'bg-cyan-500', textColor: 'text-white', description: 'Mobiliers urbains et aménagements accessibles', notes: '', icon: 'Building2', instance: 'cotec', assigneeIds: [] },
-  { id: 'ws9', name: 'Mobilité, voirie & accessibilité', color: 'bg-orange-500', textColor: 'text-white', description: 'Accessibilité des cheminements, voirie et mobilité douce', notes: '', icon: 'Car', instance: 'cotec', assigneeIds: [] },
+  { id: 'ws1', name: 'Communication', color: 'bg-yellow-400', textColor: 'text-yellow-900', description: 'Stratégie et actions de communication du projet', notes: '', icon: 'Megaphone', instance: 'both', assigneeIds: [], subSections: [] },
+  { id: 'ws2', name: 'COPIL', color: 'bg-lime-600', textColor: 'text-white', description: 'Comité de Pilotage — gouvernance stratégique', notes: '', icon: 'Users', instance: 'copil', assigneeIds: [], subSections: [] },
+  { id: 'ws3', name: 'COTEC', color: 'bg-teal-500', textColor: 'text-white', description: 'Comité Technique — suivi opérationnel', notes: '', icon: 'Settings', instance: 'cotec', assigneeIds: [], subSections: [] },
+  { id: 'ws4', name: 'Participation citoyenne', color: 'bg-red-500', textColor: 'text-white', description: 'Engagement et concertation citoyenne', notes: '', icon: 'Heart', instance: 'none', assigneeIds: [], subSections: [] },
+  { id: 'ws5', name: 'Sensibilisation & médiation', color: 'bg-pink-500', textColor: 'text-white', description: 'Actions de sensibilisation et médiation', notes: '', icon: 'BookOpen', instance: 'none', assigneeIds: [], subSections: [] },
+  { id: 'ws6', name: 'Signalétique', color: 'bg-purple-600', textColor: 'text-white', description: 'Aménagement signalétique adaptée', notes: '', icon: 'MapPin', instance: 'cotec', assigneeIds: [], subSections: [] },
+  { id: 'ws7', name: 'Gestion différenciée, fleurissement & propreté', color: 'bg-indigo-600', textColor: 'text-white', description: 'Gestion différenciée des espaces verts, fleurissement et propreté', notes: '', icon: 'Flower2', instance: 'cotec', assigneeIds: [], subSections: [] },
+  { id: 'ws8', name: 'Aménagements & mobiliers urbains', color: 'bg-cyan-500', textColor: 'text-white', description: 'Mobiliers urbains et aménagements accessibles', notes: '', icon: 'Building2', instance: 'cotec', assigneeIds: [], subSections: [] },
+  { id: 'ws9', name: 'Mobilité, voirie & accessibilité', color: 'bg-orange-500', textColor: 'text-white', description: 'Accessibilité des cheminements, voirie et mobilité douce', notes: '', icon: 'Car', instance: 'cotec', assigneeIds: [], subSections: [] },
 ];
 
 const DEFAULT_PROJECT: Project = {
@@ -26,6 +26,8 @@ const DEFAULT_PROJECT: Project = {
     { id: 'gov2', name: 'COTEC', description: 'Comité Technique — suivi de la mise en œuvre opérationnelle et coordination des actions', memberIds: ['u2', 'u3'], workstreamIds: ['ws3', 'ws6', 'ws7', 'ws8'] },
   ],
   finalPage: { content: '<p>La page résultat du projet sera publiée ici par les super administrateurs.</p>', updatedAt: new Date().toISOString(), updatedBy: '' },
+  documents: [],
+  discussions: [],
   createdAt: new Date().toISOString(),
 };
 
@@ -48,6 +50,13 @@ interface ProjectState {
   updateTaskStatus: (id: string, status: TaskStatus) => void;
   updateFinalPage: (content: string, userId: string) => void;
   updateGovernance: (id: string, data: Partial<GovernanceInstance>) => void;
+  // Workspace document actions
+  createDocument: (doc: Omit<WorkspaceDocument, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateDocument: (id: string, data: Partial<WorkspaceDocument>) => void;
+  deleteDocument: (id: string) => void;
+  createSubSection: (workstreamId: string, name: string) => void;
+  deleteSubSection: (workstreamId: string, subSectionId: string) => void;
+  addDiscussionMessage: (workstreamId: string, authorId: string, content: string) => void;
 }
 
 type SetFn = (partial: ProjectState | Partial<ProjectState> | ((state: ProjectState) => ProjectState | Partial<ProjectState>), replace?: boolean) => void;
@@ -80,6 +89,8 @@ export const useProjectStore = create<ProjectState>()(
           tasks: [],
           governance: [],
           finalPage: { content: '', updatedAt: new Date().toISOString(), updatedBy: '' },
+          documents: [],
+          discussions: [],
           createdAt: new Date().toISOString(),
         };
         set(s => ({ projects: [...s.projects, project], currentProjectId: project.id }));
@@ -157,6 +168,78 @@ export const useProjectStore = create<ProjectState>()(
         updateCur(set, p => ({
           governance: p.governance.map(g => g.id === id ? { ...g, ...data } : g)
         }));
+      },
+
+      createDocument: (docData) => {
+        const newDoc: WorkspaceDocument = {
+          ...docData,
+          id: uuid(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        updateCur(set, p => ({
+          documents: [...(p.documents ?? []), newDoc],
+        }));
+      },
+
+      updateDocument: (id, data) => {
+        updateCur(set, p => ({
+          documents: (p.documents ?? []).map(d =>
+            d.id === id ? { ...d, ...data, updatedAt: new Date().toISOString() } : d
+          ),
+        }));
+      },
+
+      deleteDocument: (id) => {
+        updateCur(set, p => ({
+          documents: (p.documents ?? []).filter(d => d.id !== id),
+        }));
+      },
+
+      createSubSection: (workstreamId, name) => {
+        const sub: WorkstreamSubSection = { id: uuid(), name, order: Date.now() };
+        updateCur(set, p => ({
+          workstreams: p.workstreams.map(ws =>
+            ws.id === workstreamId
+              ? { ...ws, subSections: [...(ws.subSections ?? []), sub] }
+              : ws
+          ),
+        }));
+      },
+
+      deleteSubSection: (workstreamId, subSectionId) => {
+        updateCur(set, p => ({
+          workstreams: p.workstreams.map(ws =>
+            ws.id === workstreamId
+              ? { ...ws, subSections: (ws.subSections ?? []).filter(s => s.id !== subSectionId) }
+              : ws
+          ),
+        }));
+      },
+
+      addDiscussionMessage: (workstreamId, authorId, content) => {
+        const msgId = uuid();
+        updateCur(set, p => {
+          const discussions = p.discussions ?? [];
+          const existing = discussions.find(d => d.workstreamId === workstreamId);
+          const newMsg = { id: msgId, authorId, content, createdAt: new Date().toISOString() };
+          if (existing) {
+            return {
+              discussions: discussions.map(d =>
+                d.workstreamId === workstreamId
+                  ? { ...d, messages: [...d.messages, newMsg] }
+                  : d
+              ),
+            };
+          }
+          const newDisc: WorkspaceDiscussion = {
+            id: uuid(),
+            workstreamId,
+            messages: [newMsg],
+            createdAt: new Date().toISOString(),
+          };
+          return { discussions: [...discussions, newDisc] };
+        });
       },
     }),
     { name: 'project-store-v2' }

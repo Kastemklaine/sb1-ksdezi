@@ -166,6 +166,7 @@ export default function SettingsView() {
       instance: newWs.instance,
       assigneeIds: newWs.assigneeIds,
       notes: '',
+      subSections: [],
     });
     setNewWs(DEFAULT_NEW_WS);
     setShowAddForm(false);

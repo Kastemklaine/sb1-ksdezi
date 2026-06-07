@@ -11,6 +11,11 @@ import SettingsView from './components/admin/SettingsView';
 import MessagingView from './components/messaging/MessagingView';
 import CalendarView from './components/calendar/CalendarView';
 import ProjectsView from './components/projects/ProjectsView';
+import WorkspacesSelector from './components/workspace/WorkspacesSelector';
+import WorkspaceView from './components/workspace/WorkspaceView';
+import FinalDocumentView from './components/workspace/FinalDocumentView';
+import DiagramsView from './components/diagrams/DiagramsView';
+import LegalView from './components/legal/LegalView';
 
 export type View =
   | { type: 'dashboard' }
@@ -21,7 +26,12 @@ export type View =
   | { type: 'settings' }
   | { type: 'messaging' }
   | { type: 'calendar' }
-  | { type: 'projects' };
+  | { type: 'projects' }
+  | { type: 'workspaces' }
+  | { type: 'workspace'; workstreamId: string }
+  | { type: 'final-document' }
+  | { type: 'diagrams' }
+  | { type: 'legal' };
 
 export default function App() {
   const currentUser = useAuthStore(s => s.currentUser);
@@ -40,6 +50,11 @@ export default function App() {
       {view.type === 'messaging' && <MessagingView />}
       {view.type === 'calendar' && <CalendarView />}
       {view.type === 'projects' && <ProjectsView />}
+      {view.type === 'workspaces' && <WorkspacesSelector setView={setView} />}
+      {view.type === 'workspace' && <WorkspaceView workstreamId={view.workstreamId} setView={setView} />}
+      {view.type === 'final-document' && <FinalDocumentView />}
+      {view.type === 'diagrams' && <DiagramsView setView={setView} />}
+      {view.type === 'legal' && <LegalView />}
     </Layout>
   );
 }

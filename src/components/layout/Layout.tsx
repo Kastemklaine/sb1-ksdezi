@@ -402,6 +402,15 @@ export default function Layout({ view, setView, children }: Props) {
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           {children}
         </main>
+        <footer className="shrink-0 border-t border-gray-200 bg-white px-4 md:px-6 py-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-gray-400">
+          <span>© {new Date().getFullYear()} Commune de Quimperlé</span>
+          <span className="hidden sm:inline">·</span>
+          <button onClick={() => setView({ type: 'legal' })} className="hover:text-green-600 transition-colors underline underline-offset-2">Mentions légales</button>
+          <span className="hidden sm:inline">·</span>
+          <button onClick={() => { setView({ type: 'legal' }); }} className="hover:text-green-600 transition-colors underline underline-offset-2">RGPD</button>
+          <span className="hidden sm:inline">·</span>
+          <button onClick={() => { setView({ type: 'legal' }); }} className="hover:text-green-600 transition-colors underline underline-offset-2">Cookies</button>
+        </footer>
       </div>
 
       {show2FA && <TwoFactorSetup onClose={() => setShow2FA(false)} />}

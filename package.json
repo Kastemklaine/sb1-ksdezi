@@ -23,6 +23,7 @@
     "@tiptap/extension-underline": "^2.4.0",
     "@tiptap/react": "^2.4.0",
     "@tiptap/starter-kit": "^2.4.0",
+    "@xyflow/react": "^12.11.0",
     "date-fns": "^3.6.0",
     "firebase": "^12.14.0",
     "lucide-react": "^0.400.0",
