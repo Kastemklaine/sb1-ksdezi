@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Users, FileText, Network, LogOut, Menu, X,
-  ChevronDown, ChevronRight, Settings, Bell
+  ChevronDown, ChevronRight, Settings, Bell, MessageSquare, Calendar
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useProjectStore } from '../../store/useProjectStore';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import type { View } from '../../App';
 
 interface Props {
@@ -34,6 +36,24 @@ export default function Layout({ view, setView, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [wsExpanded, setWsExpanded] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const q = query(collection(db, 'messages'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      const count = snap.docs.filter(d => {
+        const data = d.data();
+        const readBy: string[] = data.readBy ?? [];
+        const fromId: string = data.fromId ?? '';
+        const toId: string | null = data.toId ?? null;
+        const isForMe = toId === null || toId === currentUser.id;
+        return isForMe && fromId !== currentUser.id && !readBy.includes(currentUser.id);
+      }).length;
+      setUnreadCount(count);
+    });
+    return () => unsub();
+  }, [currentUser]);
 
   const isActive = (v: View) =>
     view.type === v.type && (!('id' in v) || !('id' in view) || (view as { id?: string }).id === (v as { id?: string }).id);
@@ -72,6 +92,8 @@ export default function Layout({ view, setView, children }: Props) {
     if (view.type === 'finalpage') return 'Page résultat';
     if (view.type === 'governance') return 'Gouvernance';
     if (view.type === 'settings') return 'Paramètres';
+    if (view.type === 'messaging') return 'Messagerie';
+    if (view.type === 'calendar') return 'Agenda';
     return '';
   };
 
@@ -106,6 +128,33 @@ export default function Layout({ view, setView, children }: Props) {
           {navItem('Tableau de bord', LayoutDashboard, { type: 'dashboard' })}
           {navItem('Gouvernance', Network, { type: 'governance' })}
           {navItem('Page résultat', FileText, { type: 'finalpage' })}
+          {/* Messagerie with unread badge */}
+          <button
+            onClick={() => { setView({ type: 'messaging' }); if (window.innerWidth < 768) setSidebarOpen(false); }}
+            title={!sidebarOpen ? 'Messagerie' : undefined}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all group relative ${
+              view.type === 'messaging'
+                ? 'bg-[#00c875]/20 text-[#00c875] font-semibold'
+                : 'text-gray-400 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4 shrink-0" />
+            {sidebarOpen && <span className="truncate flex-1 text-left">Messagerie</span>}
+            {sidebarOpen && unreadCount > 0 && (
+              <span className="bg-green-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center shrink-0">
+                {unreadCount}
+              </span>
+            )}
+            {!sidebarOpen && unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-500" />
+            )}
+            {!sidebarOpen && (
+              <span className="absolute left-full ml-2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-lg">
+                Messagerie
+              </span>
+            )}
+          </button>
+          {navItem('Agenda', Calendar, { type: 'calendar' })}
           {currentUser?.role === 'superadmin' && navItem('Utilisateurs', Users, { type: 'users' })}
           {currentUser?.role === 'superadmin' && navItem('Paramètres', Settings, { type: 'settings' })}
 
@@ -259,6 +308,8 @@ export default function Layout({ view, setView, children }: Props) {
                     { label: 'Utilisateurs', icon: Users, v: { type: 'users' } as View },
                     { label: 'Paramètres', icon: Settings, v: { type: 'settings' } as View },
                   ] : []),
+                  { label: 'Messagerie', icon: MessageSquare, v: { type: 'messaging' } as View },
+                  { label: 'Agenda', icon: Calendar, v: { type: 'calendar' } as View },
                 ].map(({ label, icon: Icon, v }) => {
                   const active = isActive(v);
                   return (
@@ -269,6 +320,11 @@ export default function Layout({ view, setView, children }: Props) {
                     >
                       <Icon className="w-4 h-4 shrink-0" />
                       <span>{label}</span>
+                      {label === 'Messagerie' && unreadCount > 0 && (
+                        <span className="ml-auto bg-green-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
+                          {unreadCount}
+                        </span>
+                      )}
                     </button>
                   );
                 })}

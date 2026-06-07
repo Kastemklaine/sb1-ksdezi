@@ -8,6 +8,8 @@ import UserManagement from './components/admin/UserManagement';
 import FinalPageView from './components/finalpage/FinalPageView';
 import GovernanceView from './components/governance/GovernanceView';
 import SettingsView from './components/admin/SettingsView';
+import MessagingView from './components/messaging/MessagingView';
+import CalendarView from './components/calendar/CalendarView';
 
 export type View =
   | { type: 'dashboard' }
@@ -15,7 +17,9 @@ export type View =
   | { type: 'users' }
   | { type: 'finalpage' }
   | { type: 'governance' }
-  | { type: 'settings' };
+  | { type: 'settings' }
+  | { type: 'messaging' }
+  | { type: 'calendar' };
 
 export default function App() {
   const currentUser = useAuthStore(s => s.currentUser);
@@ -31,6 +35,8 @@ export default function App() {
       {view.type === 'finalpage' && <FinalPageView />}
       {view.type === 'governance' && <GovernanceView />}
       {view.type === 'settings' && <SettingsView />}
+      {view.type === 'messaging' && <MessagingView />}
+      {view.type === 'calendar' && <CalendarView />}
     </Layout>
   );
 }
