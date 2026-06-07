@@ -91,8 +91,8 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
             <p className="text-gray-500 mt-0.5 text-sm">{ws.description}</p>
             {/* Workstream assignees */}
             {ws.assigneeIds && ws.assigneeIds.length > 0 && (
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-xs text-gray-400">Responsables :</span>
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <span className="text-xs text-gray-400 shrink-0">Responsables :</span>
                 <div className="flex -space-x-1">
                   {ws.assigneeIds.map(id => {
                     const u = users.find(u => u.id === id);
@@ -109,16 +109,9 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
                     );
                   })}
                 </div>
-                <div className="flex gap-1 flex-wrap">
-                  {ws.assigneeIds.map(id => {
-                    const u = users.find(u => u.id === id);
-                    return u ? <span key={id} className="text-xs text-gray-600">{u.name}</span> : null;
-                  }).filter(Boolean).reduce((acc: React.ReactNode[], el, i, arr) => {
-                    acc.push(el);
-                    if (i < arr.length - 1) acc.push(<span key={`sep-${i}`} className="text-xs text-gray-300">·</span>);
-                    return acc;
-                  }, [])}
-                </div>
+                <span className="text-xs text-gray-500">
+                  {ws.assigneeIds.map(id => users.find(u => u.id === id)?.name).filter(Boolean).join(' · ')}
+                </span>
               </div>
             )}
           </div>
@@ -126,10 +119,10 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
         {canEdit && (
           <button
             onClick={() => openCreate()}
-            className="flex items-center gap-2 bg-[#00c875] hover:bg-[#00b368] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 shadow-sm"
+            className="flex items-center gap-2 bg-[#00c875] hover:bg-[#00b368] text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 shadow-sm min-h-[44px]"
           >
             <Plus className="w-4 h-4" />
-            Nouvelle tâche
+            <span className="hidden sm:inline">Nouvelle tâche</span>
           </button>
         )}
       </div>

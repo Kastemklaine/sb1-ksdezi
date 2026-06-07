@@ -152,7 +152,7 @@ export default function SettingsView() {
                         <input
                           value={row.name}
                           onChange={e => updateRow(ws.id, { name: e.target.value })}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875] focus:border-transparent"
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875] focus:border-transparent"
                         />
                       </div>
 
@@ -162,7 +162,7 @@ export default function SettingsView() {
                         <input
                           value={row.description}
                           onChange={e => updateRow(ws.id, { description: e.target.value })}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875] focus:border-transparent"
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875] focus:border-transparent"
                         />
                       </div>
 
@@ -188,7 +188,7 @@ export default function SettingsView() {
                         <select
                           value={row.instance}
                           onChange={e => updateRow(ws.id, { instance: e.target.value as Workstream['instance'] })}
-                          className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875] focus:border-transparent bg-white"
+                          className="w-full border border-gray-200 rounded-lg px-2 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875] focus:border-transparent bg-white"
                         >
                           {INSTANCE_OPTIONS.map(o => (
                             <option key={o.value} value={o.value}>{o.label}</option>
@@ -199,7 +199,7 @@ export default function SettingsView() {
                       {/* Assignees */}
                       <div className="md:col-span-2">
                         <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Responsables</label>
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-2">
                           {users.map(u => {
                             const assigned = row.assigneeIds.includes(u.id);
                             return (
@@ -208,9 +208,12 @@ export default function SettingsView() {
                                 type="button"
                                 title={u.name}
                                 onClick={() => toggleWsAssignee(ws.id, u.id)}
-                                className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all ${assigned ? 'border-[#00c875] bg-[#00c875] text-white scale-110' : 'border-gray-300 bg-gray-100 text-gray-500 hover:border-gray-400'}`}
+                                className={`flex items-center gap-1.5 px-2 py-1 rounded-full border-2 text-xs font-medium transition-all min-h-[36px] ${assigned ? 'border-[#00c875] bg-[#00c875] text-white' : 'border-gray-300 bg-gray-50 text-gray-500 hover:border-gray-400'}`}
                               >
-                                {u.name.charAt(0)}
+                                <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold shrink-0 ${assigned ? 'bg-white/30' : 'bg-gray-200'}`}>
+                                  {u.name.charAt(0)}
+                                </span>
+                                <span className="hidden sm:inline">{u.name.split(' ')[0]}</span>
                               </button>
                             );
                           })}
@@ -226,7 +229,7 @@ export default function SettingsView() {
                       <div className="md:col-span-1 flex items-end">
                         <button
                           onClick={() => saveRow(ws.id)}
-                          className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${row.saved ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-[#00c875] hover:bg-[#00b368] text-white'}`}
+                          className={`w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${row.saved ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-[#00c875] hover:bg-[#00b368] text-white'}`}
                         >
                           <Save className="w-3.5 h-3.5" />
                           {row.saved ? 'Sauvé' : 'Sauver'}
@@ -252,7 +255,7 @@ export default function SettingsView() {
             <input
               value={pName}
               onChange={e => { setPName(e.target.value); setProjectSaved(false); }}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875] focus:border-transparent"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875] focus:border-transparent"
               placeholder="Nom du projet"
             />
           </div>
@@ -261,13 +264,13 @@ export default function SettingsView() {
             <input
               value={pSubtitle}
               onChange={e => { setPSubtitle(e.target.value); setProjectSaved(false); }}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875] focus:border-transparent"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875] focus:border-transparent"
               placeholder="Sous-titre du projet"
             />
           </div>
           <button
             onClick={saveProject}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${projectSaved ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-[#00c875] hover:bg-[#00b368] text-white'}`}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] w-full sm:w-auto ${projectSaved ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-[#00c875] hover:bg-[#00b368] text-white'}`}
           >
             <Save className="w-4 h-4" />
             {projectSaved ? 'Modifications sauvegardées !' : 'Enregistrer les modifications'}
