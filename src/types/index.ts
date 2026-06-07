@@ -36,6 +36,7 @@ export interface Workstream {
   notes: string; // HTML from Tiptap
   icon: string; // lucide icon name
   instance: 'copil' | 'cotec' | 'both' | 'none';
+  assigneeIds: string[]; // users responsible for this workstream
 }
 
 export interface GovernanceInstance {

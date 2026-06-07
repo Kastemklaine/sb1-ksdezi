@@ -20,11 +20,14 @@ interface Props {
 }
 
 export default function TaskModal({ workstreamId, task, defaultStatus, onClose }: Props) {
-  const { createTask, updateTask, deleteTask, tasks } = useProjectStore();
+  const { createTask, updateTask, deleteTask, tasks, workstreams } = useProjectStore();
   const users = useAuthStore(s => s.users);
   const currentUser = useAuthStore(s => s.currentUser);
 
-  const canEdit = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
+  const ws = workstreams.find(w => w.id === workstreamId);
+  const isAdmin = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
+  const isWsAssignee = !!(currentUser && ws?.assigneeIds?.includes(currentUser.id));
+  const canEdit = isAdmin || isWsAssignee;
 
   const [title, setTitle] = useState(task?.title ?? '');
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? defaultStatus ?? 'todo');

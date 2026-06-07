@@ -4,14 +4,14 @@ import { v4 as uuid } from 'uuid';
 import type { Task, Workstream, GovernanceInstance, FinalPage, TaskStatus } from '../types';
 
 const WORKSTREAMS: Workstream[] = [
-  { id: 'ws1', name: 'Communication', color: 'bg-yellow-400', textColor: 'text-yellow-900', description: 'Stratégie et actions de communication du projet', notes: '', icon: 'Megaphone', instance: 'both' },
-  { id: 'ws2', name: 'COPIL', color: 'bg-lime-600', textColor: 'text-white', description: 'Comité de Pilotage — gouvernance stratégique', notes: '', icon: 'Users', instance: 'copil' },
-  { id: 'ws3', name: 'COTEC', color: 'bg-teal-500', textColor: 'text-white', description: 'Comité Technique — suivi opérationnel', notes: '', icon: 'Settings', instance: 'cotec' },
-  { id: 'ws4', name: 'Participation citoyenne', color: 'bg-red-500', textColor: 'text-white', description: 'Engagement et concertation citoyenne', notes: '', icon: 'Heart', instance: 'none' },
-  { id: 'ws5', name: 'Sensibilisation & médiation', color: 'bg-pink-500', textColor: 'text-white', description: 'Actions de sensibilisation et médiation', notes: '', icon: 'BookOpen', instance: 'none' },
-  { id: 'ws6', name: 'Signalétique + voirie', color: 'bg-purple-600', textColor: 'text-white', description: 'Aménagement signalétique et voirie adaptée', notes: '', icon: 'MapPin', instance: 'cotec' },
-  { id: 'ws7', name: 'Gestion différenciée + fleurissement', color: 'bg-indigo-600', textColor: 'text-white', description: 'Gestion différenciée des espaces verts et fleurissement', notes: '', icon: 'Flower2', instance: 'cotec' },
-  { id: 'ws8', name: 'Aménagements + mobiliers urbains', color: 'bg-cyan-500', textColor: 'text-white', description: 'Mobiliers urbains et aménagements accessibles', notes: '', icon: 'Building2', instance: 'cotec' },
+  { id: 'ws1', name: 'Communication', color: 'bg-yellow-400', textColor: 'text-yellow-900', description: 'Stratégie et actions de communication du projet', notes: '', icon: 'Megaphone', instance: 'both', assigneeIds: [] },
+  { id: 'ws2', name: 'COPIL', color: 'bg-lime-600', textColor: 'text-white', description: 'Comité de Pilotage — gouvernance stratégique', notes: '', icon: 'Users', instance: 'copil', assigneeIds: [] },
+  { id: 'ws3', name: 'COTEC', color: 'bg-teal-500', textColor: 'text-white', description: 'Comité Technique — suivi opérationnel', notes: '', icon: 'Settings', instance: 'cotec', assigneeIds: [] },
+  { id: 'ws4', name: 'Participation citoyenne', color: 'bg-red-500', textColor: 'text-white', description: 'Engagement et concertation citoyenne', notes: '', icon: 'Heart', instance: 'none', assigneeIds: [] },
+  { id: 'ws5', name: 'Sensibilisation & médiation', color: 'bg-pink-500', textColor: 'text-white', description: 'Actions de sensibilisation et médiation', notes: '', icon: 'BookOpen', instance: 'none', assigneeIds: [] },
+  { id: 'ws6', name: 'Signalétique + voirie', color: 'bg-purple-600', textColor: 'text-white', description: 'Aménagement signalétique et voirie adaptée', notes: '', icon: 'MapPin', instance: 'cotec', assigneeIds: [] },
+  { id: 'ws7', name: 'Gestion différenciée + fleurissement', color: 'bg-indigo-600', textColor: 'text-white', description: 'Gestion différenciée des espaces verts et fleurissement', notes: '', icon: 'Flower2', instance: 'cotec', assigneeIds: [] },
+  { id: 'ws8', name: 'Aménagements + mobiliers urbains', color: 'bg-cyan-500', textColor: 'text-white', description: 'Mobiliers urbains et aménagements accessibles', notes: '', icon: 'Building2', instance: 'cotec', assigneeIds: [] },
 ];
 
 const GOVERNANCE: GovernanceInstance[] = [

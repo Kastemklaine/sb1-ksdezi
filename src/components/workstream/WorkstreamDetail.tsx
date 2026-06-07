@@ -51,7 +51,9 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
   const [notesOpen, setNotesOpen] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('table');
 
-  const canEdit = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
+  const isWsAssignee = !!(currentUser && ws?.assigneeIds?.includes(currentUser.id));
+  const canEdit = isAdmin || isWsAssignee;
 
   if (!ws) return <p className="text-gray-500">Axe introuvable.</p>;
 
@@ -87,6 +89,38 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{ws.name}</h1>
             <p className="text-gray-500 mt-0.5 text-sm">{ws.description}</p>
+            {/* Workstream assignees */}
+            {ws.assigneeIds && ws.assigneeIds.length > 0 && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs text-gray-400">Responsables :</span>
+                <div className="flex -space-x-1">
+                  {ws.assigneeIds.map(id => {
+                    const u = users.find(u => u.id === id);
+                    if (!u) return null;
+                    return (
+                      <div
+                        key={id}
+                        title={u.name}
+                        className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold shrink-0"
+                        style={{ backgroundColor: wsColor }}
+                      >
+                        {u.name.charAt(0)}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                  {ws.assigneeIds.map(id => {
+                    const u = users.find(u => u.id === id);
+                    return u ? <span key={id} className="text-xs text-gray-600">{u.name}</span> : null;
+                  }).filter(Boolean).reduce((acc: React.ReactNode[], el, i, arr) => {
+                    acc.push(el);
+                    if (i < arr.length - 1) acc.push(<span key={`sep-${i}`} className="text-xs text-gray-300">·</span>);
+                    return acc;
+                  }, [])}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         {canEdit && (

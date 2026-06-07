@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Save, Settings, FolderKanban } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import type { Workstream } from '../../types';
 
 type Tab = 'workstreams' | 'project';
@@ -41,6 +42,7 @@ interface WsRowState {
   description: string;
   color: string;
   instance: Workstream['instance'];
+  assigneeIds: string[];
   saved: boolean;
 }
 
@@ -51,6 +53,7 @@ export default function SettingsView() {
   const projectName = useProjectStore(s => s.projectName);
   const projectSubtitle = useProjectStore(s => s.projectSubtitle);
   const updateProjectInfo = useProjectStore(s => s.updateProjectInfo);
+  const users = useAuthStore(s => s.users);
 
   const [rows, setRows] = useState<Record<string, WsRowState>>(() =>
     Object.fromEntries(workstreams.map(ws => [ws.id, {
@@ -58,6 +61,7 @@ export default function SettingsView() {
       description: ws.description,
       color: ws.color,
       instance: ws.instance,
+      assigneeIds: ws.assigneeIds ?? [],
       saved: false,
     }]))
   );
@@ -70,6 +74,19 @@ export default function SettingsView() {
     setRows(r => ({ ...r, [id]: { ...r[id], ...patch, saved: false } }));
   };
 
+  const toggleWsAssignee = (wsId: string, userId: string) => {
+    setRows(r => ({
+      ...r,
+      [wsId]: {
+        ...r[wsId],
+        assigneeIds: r[wsId].assigneeIds.includes(userId)
+          ? r[wsId].assigneeIds.filter(id => id !== userId)
+          : [...r[wsId].assigneeIds, userId],
+        saved: false,
+      },
+    }));
+  };
+
   const saveRow = (id: string) => {
     const row = rows[id];
     updateWorkstream(id, {
@@ -78,6 +95,7 @@ export default function SettingsView() {
       color: row.color,
       textColor: TEXT_COLOR_MAP[row.color] ?? 'text-white',
       instance: row.instance,
+      assigneeIds: row.assigneeIds,
     });
     setRows(r => ({ ...r, [id]: { ...r[id], saved: true } }));
     setTimeout(() => setRows(r => ({ ...r, [id]: { ...r[id], saved: false } })), 2000);
@@ -139,7 +157,7 @@ export default function SettingsView() {
                       </div>
 
                       {/* Description */}
-                      <div className="md:col-span-4">
+                      <div className="md:col-span-3">
                         <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Description</label>
                         <input
                           value={row.description}
@@ -149,7 +167,7 @@ export default function SettingsView() {
                       </div>
 
                       {/* Color */}
-                      <div className="md:col-span-3">
+                      <div className="md:col-span-2">
                         <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Couleur</label>
                         <div className="flex gap-1.5 flex-wrap">
                           {PRESET_COLORS.map(pc => (
@@ -176,6 +194,32 @@ export default function SettingsView() {
                             <option key={o.value} value={o.value}>{o.label}</option>
                           ))}
                         </select>
+                      </div>
+
+                      {/* Assignees */}
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Responsables</label>
+                        <div className="flex flex-wrap gap-1">
+                          {users.map(u => {
+                            const assigned = row.assigneeIds.includes(u.id);
+                            return (
+                              <button
+                                key={u.id}
+                                type="button"
+                                title={u.name}
+                                onClick={() => toggleWsAssignee(ws.id, u.id)}
+                                className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all ${assigned ? 'border-[#00c875] bg-[#00c875] text-white scale-110' : 'border-gray-300 bg-gray-100 text-gray-500 hover:border-gray-400'}`}
+                              >
+                                {u.name.charAt(0)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {row.assigneeIds.length > 0 && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            {row.assigneeIds.map(id => users.find(u => u.id === id)?.name).filter(Boolean).join(', ')}
+                          </p>
+                        )}
                       </div>
 
                       {/* Save button */}
