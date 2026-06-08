@@ -4,13 +4,9 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   build_and_deploy:
@@ -31,20 +27,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy to Firebase Hosting (Preview — PR)
-        if: github.event_name == 'pull_request'
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: quimperle-a-hauteur-d-enfant
-          channelId: pr-${{ github.event.pull_request.number }}
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
 
-      - name: Deploy to Firebase Hosting (Production — main)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: quimperle-a-hauteur-d-enfant
-          channelId: live
+      - name: Deploy to Firebase Hosting
+        run: firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}" --project quimperle-a-hauteur-d-enfant --non-interactive
