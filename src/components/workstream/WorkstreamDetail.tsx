@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, AlertTriangle, CheckCircle2, Clock, Ban, ChevronDown, LayoutList, Kanban } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle2, Clock, Ban, ChevronDown, LayoutList, Kanban, Pencil, Trash2, FolderOpen } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RichTextEditor from '../editor/RichTextEditor';
@@ -8,6 +8,7 @@ import KanbanBoard from './KanbanBoard';
 import type { Task, TaskStatus } from '../../types';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import type { View } from '../../App';
 
 const STATUS_CONFIG: Record<TaskStatus, { label: string; icon: React.ElementType; color: string; bg: string; dot: string }> = {
   todo: { label: 'À faire', icon: Clock, color: 'text-gray-600', bg: 'bg-gray-100', dot: 'bg-gray-400' },
@@ -29,14 +30,16 @@ const COLOR_HEX: Record<string, string> = {
 
 interface Props {
   workstreamId: string;
+  setView: (v: View) => void;
 }
 
 type ViewMode = 'table' | 'kanban';
 
-export default function WorkstreamDetail({ workstreamId }: Props) {
+export default function WorkstreamDetail({ workstreamId, setView }: Props) {
   const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
   const tasks = useProjectStore(s => curProject(s)?.tasks ?? []);
   const updateWorkstreamNotes = useProjectStore(s => s.updateWorkstreamNotes);
+  const deleteTask = useProjectStore(s => s.deleteTask);
   const users = useAuthStore(s => s.users);
   const currentUser = useAuthStore(s => s.currentUser);
 
@@ -50,6 +53,7 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
   const [defaultStatus, setDefaultStatus] = useState<TaskStatus>('todo');
   const [notesOpen, setNotesOpen] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [taskMenu, setTaskMenu] = useState<{ task: Task; x: number; y: number } | null>(null);
 
   const isAdmin = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
   const isWsAssignee = !!(currentUser && ws?.assigneeIds?.includes(currentUser.id));
@@ -89,7 +93,6 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{ws.name}</h1>
             <p className="text-gray-500 mt-0.5 text-sm">{ws.description}</p>
-            {/* Workstream assignees */}
             {ws.assigneeIds && ws.assigneeIds.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 mt-2">
                 <span className="text-xs text-gray-400 shrink-0">Responsables :</span>
@@ -150,7 +153,6 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
 
       {/* Tasks section */}
       <div>
-        {/* Tasks toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-gray-800">Tâches</h2>
@@ -158,7 +160,6 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Filter pills — only in table view */}
             {viewMode === 'table' && (
               <div className="flex gap-1 flex-wrap">
                 {(['all', 'todo', 'inprogress', 'done', 'blocked'] as const).map(f => (
@@ -173,7 +174,6 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
               </div>
             )}
 
-            {/* View toggle */}
             <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
               <button
                 onClick={() => setViewMode('table')}
@@ -197,7 +197,7 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
           <KanbanBoard
             workstreamId={workstreamId}
             tasks={wsTasks}
-            onOpenTask={openEdit}
+            onOpenTask={(t) => setTaskMenu({ task: t, x: window.innerWidth / 2 - 104, y: window.innerHeight / 2 - 80 })}
             onCreateTask={openCreate}
           />
         ) : (
@@ -211,9 +211,7 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
                 </p>
               </div>
             ) : (
-              /* Monday.com-style table */
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                {/* Table header */}
                 <div className="grid grid-cols-12 gap-0 bg-gray-50 border-b border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                   <div className="col-span-5">Tâche</div>
                   <div className="col-span-2">Statut</div>
@@ -222,7 +220,6 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
                   <div className="col-span-1 text-right hidden lg:block">Budget</div>
                 </div>
 
-                {/* Rows */}
                 <div className="divide-y divide-gray-100">
                   {filtered.map((task, idx) => {
                     const sc = STATUS_CONFIG[task.status];
@@ -233,10 +230,9 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
                     return (
                       <button
                         key={task.id}
-                        onClick={() => openEdit(task)}
+                        onClick={(e) => { e.stopPropagation(); setTaskMenu({ task, x: e.clientX, y: e.clientY }); }}
                         className={`w-full grid grid-cols-12 gap-0 px-4 py-3 text-left transition-colors hover:bg-[#00c875]/5 items-center ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}
                       >
-                        {/* Task name */}
                         <div className="col-span-5 flex items-center gap-2 min-w-0 pr-2">
                           <div className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`} />
                           <div className="min-w-0">
@@ -250,7 +246,6 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
                           </div>
                         </div>
 
-                        {/* Status pill */}
                         <div className="col-span-2">
                           <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${sc.bg} ${sc.color}`}>
                             <StatusIcon className="w-3 h-3" />
@@ -258,7 +253,6 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
                           </span>
                         </div>
 
-                        {/* Assignees */}
                         <div className="col-span-2 hidden md:flex items-center -space-x-1">
                           {assignees.slice(0, 3).map(u => (
                             <div
@@ -277,7 +271,6 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
                           {assignees.length === 0 && <span className="text-xs text-gray-300">—</span>}
                         </div>
 
-                        {/* Dates */}
                         <div className="col-span-2 hidden lg:block text-xs text-gray-500">
                           {task.startDate || task.endDate ? (
                             <span>
@@ -290,7 +283,6 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
                           )}
                         </div>
 
-                        {/* Budget */}
                         <div className="col-span-1 hidden lg:block text-right text-xs font-medium text-gray-600">
                           {task.budget > 0 ? `${task.budget.toLocaleString('fr-FR')} €` : <span className="text-gray-300">—</span>}
                         </div>
@@ -299,7 +291,6 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
                   })}
                 </div>
 
-                {/* Add task row */}
                 {canEdit && (
                   <button
                     onClick={() => openCreate()}
@@ -314,6 +305,52 @@ export default function WorkstreamDetail({ workstreamId }: Props) {
           </>
         )}
       </div>
+
+      {/* Task context menu */}
+      {taskMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setTaskMenu(null)} />
+          <div
+            className="fixed z-50 bg-white rounded-xl shadow-2xl border border-gray-200 py-1 w-52"
+            style={{
+              top: Math.min(taskMenu.y, window.innerHeight - 160),
+              left: Math.min(taskMenu.x, window.innerWidth - 220),
+            }}
+          >
+            <div className="px-3 py-2 border-b border-gray-100">
+              <p className="text-xs font-semibold text-gray-700 truncate">{taskMenu.task.title}</p>
+            </div>
+            <button
+              onClick={() => { openEdit(taskMenu.task); setTaskMenu(null); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Pencil className="w-4 h-4 text-blue-500" />
+              Modifier
+            </button>
+            <button
+              onClick={() => { setView({ type: 'workspace', workstreamId }); setTaskMenu(null); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <FolderOpen className="w-4 h-4 text-purple-500" />
+              Espace de travail
+            </button>
+            {canEdit && (
+              <button
+                onClick={() => {
+                  if (confirm(`Supprimer "${taskMenu.task.title}" ?`)) {
+                    deleteTask(taskMenu.task.id);
+                    setTaskMenu(null);
+                  }
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors border-t border-gray-100 mt-1"
+              >
+                <Trash2 className="w-4 h-4" />
+                Supprimer
+              </button>
+            )}
+          </div>
+        </>
+      )}
 
       {showModal && (
         <TaskModal

@@ -42,7 +42,7 @@ export default function App() {
   return (
     <Layout view={view} setView={setView}>
       {view.type === 'dashboard' && <Dashboard setView={setView} />}
-      {view.type === 'workstream' && <WorkstreamDetail workstreamId={view.id} />}
+      {view.type === 'workstream' && <WorkstreamDetail workstreamId={view.id} setView={setView} />}
       {view.type === 'users' && <UserManagement />}
       {view.type === 'finalpage' && <FinalPageView />}
       {view.type === 'governance' && <GovernanceView />}
