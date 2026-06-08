@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export type IAProvider = 'ollama' | 'anthropic';
+
+export interface IAConfig {
+  provider: IAProvider;
+  ollamaUrl: string;   // default: http://localhost:11434
+  ollamaModel: string; // default: llama3.2
+  anthropicKey: string;
+}
+
 export interface KnowledgeDoc {
   id: string;
   title: string;
@@ -24,10 +33,10 @@ export interface IAConversation {
 }
 
 interface IAStore {
-  apiKey: string;
+  config: IAConfig;
   documents: KnowledgeDoc[];
   conversations: IAConversation[];
-  setApiKey: (key: string) => void;
+  setConfig: (c: Partial<IAConfig>) => void;
   addDocument: (doc: Omit<KnowledgeDoc, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateDocument: (id: string, patch: Partial<Pick<KnowledgeDoc, 'title' | 'content'>>) => void;
   deleteDocument: (id: string) => void;
@@ -42,11 +51,16 @@ const uuid = () => Math.random().toString(36).slice(2) + Date.now().toString(36)
 export const useIAStore = create<IAStore>()(
   persist(
     (set) => ({
-      apiKey: '',
+      config: {
+        provider: 'ollama' as IAProvider,
+        ollamaUrl: 'http://localhost:11434',
+        ollamaModel: 'llama3.2',
+        anthropicKey: '',
+      },
       documents: [],
       conversations: [],
 
-      setApiKey: (key) => set({ apiKey: key }),
+      setConfig: (c) => set(s => ({ config: { ...s.config, ...c } })),
 
       addDocument: (doc) => set(s => ({
         documents: [...s.documents, {
