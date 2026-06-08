@@ -1,11 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import type { MessageAttachment } from '../../types';
-import { MessageSquare, Plus, X, Send, Paperclip, FileText, ArrowLeft, Loader2 } from 'lucide-react';
+import { MessageSquare, Plus, X, Send, Paperclip, FileText, ArrowLeft, Loader2, Lock } from 'lucide-react';
 import RichTextEditor from '../editor/RichTextEditor';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../lib/firebase';
+import { encryptText, decryptText } from '../../lib/crypto';
 
 type MobilePanel = 'list' | 'detail';
 
@@ -18,6 +19,7 @@ export default function MessagingView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showCompose, setShowCompose] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>('list');
+  const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>({});
 
   // Compose form
   const [toId, setToId] = useState('');
@@ -35,6 +37,14 @@ export default function MessagingView() {
   const unreadCount = inbox.filter(
     m => currentUser && !m.readBy.includes(currentUser.id) && m.fromId !== currentUser.id
   ).length;
+
+  useEffect(() => {
+    const msg = inbox.find(m => m.id === selectedId);
+    if (!msg || decryptedBodies[msg.id]) return;
+    decryptText(msg.body).then(plain => {
+      setDecryptedBodies(prev => ({ ...prev, [msg.id]: plain }));
+    });
+  }, [selectedId, inbox]);
 
   const handleSelect = (id: string) => {
     setSelectedId(id);
@@ -58,10 +68,11 @@ export default function MessagingView() {
     );
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!currentUser || !subject.trim() || !body.trim()) return;
     setSending(true);
-    sendMessage({ fromId: currentUser.id, fromName: currentUser.name, toId: toId || null, subject: subject.trim(), body, attachments });
+    const encryptedBody = await encryptText(body);
+    sendMessage({ fromId: currentUser.id, fromName: currentUser.name, toId: toId || null, subject: subject.trim(), body: encryptedBody, attachments });
     setShowCompose(false);
     setToId(''); setSubject(''); setBody(''); setAttachments([]);
     setSending(false);
@@ -147,10 +158,11 @@ export default function MessagingView() {
               <span>De : <span className="font-medium text-gray-700">{selectedMessage.fromName}</span></span>
               <span>À : <span className="font-medium text-gray-700">{selectedMessage.toId ? (users.find(u => u.id === selectedMessage.toId)?.name ?? selectedMessage.toId) : 'Tous'}</span></span>
               <span>{formatDate(selectedMessage.createdAt)}</span>
+              <span className="flex items-center gap-1 text-xs text-green-600 font-medium"><Lock className="w-3 h-3" />Chiffré</span>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-4 sm:p-5">
-            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: selectedMessage.body }} />
+            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: decryptedBodies[selectedMessage.id] ?? '<p class="text-gray-400 italic">Déchiffrement en cours...</p>' }} />
             {selectedMessage.attachments.length > 0 && (
               <div className="mt-6 border-t border-gray-100 pt-4">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Pièces jointes</p>
