@@ -17,24 +17,26 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { toPng } from 'html-to-image';
-import { Download, Square, Diamond, Type, ArrowRight, Trash2, Save, X } from 'lucide-react';
+import { Download, Square, Diamond, Type, ArrowRight, Trash2, Save, X, FileImage, Loader2 } from 'lucide-react';
 
 interface DiagramEditorInnerProps {
   initialNodes: Node[];
   initialEdges: Edge[];
   onSave: (data: { nodes: Node[]; edges: Edge[] }) => void;
   onClose?: () => void;
+  onInsert?: (dataUrl: string) => Promise<void>;
 }
 
 let nodeIdCounter = 1;
 
-function DiagramEditorInner({ initialNodes, initialEdges, onSave, onClose }: DiagramEditorInnerProps) {
+function DiagramEditorInner({ initialNodes, initialEdges, onSave, onClose, onInsert }: DiagramEditorInnerProps) {
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [nodeColor, setNodeColor] = useState('#6366f1');
+  const [inserting, setInserting] = useState(false);
   const reactFlow = useReactFlow();
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -137,6 +139,23 @@ function DiagramEditorInner({ initialNodes, initialEdges, onSave, onClose }: Dia
           : n
       )
     );
+  };
+
+  const handleInsertInDoc = async () => {
+    if (!onInsert) return;
+    const flowEl = containerRef.current?.querySelector('.react-flow__viewport') as HTMLElement | null;
+    const wrapper = containerRef.current?.querySelector('.react-flow__renderer') as HTMLElement | null;
+    const target = wrapper ?? flowEl ?? containerRef.current;
+    if (!target) return;
+    setInserting(true);
+    try {
+      const dataUrl = await toPng(target, { backgroundColor: '#ffffff', pixelRatio: 2 });
+      await onInsert(dataUrl);
+    } catch {
+      alert('Erreur lors de la génération du schéma.');
+    } finally {
+      setInserting(false);
+    }
   };
 
   const handleExportPNG = async () => {
@@ -247,6 +266,16 @@ function DiagramEditorInner({ initialNodes, initialEdges, onSave, onClose }: Dia
             <Download className="w-3 h-3" />
             SVG
           </button>
+          {onInsert && (
+            <button
+              onClick={handleInsertInDoc}
+              disabled={inserting}
+              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors touch-manipulation min-h-[36px]"
+            >
+              {inserting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileImage className="w-3 h-3" />}
+              Insérer
+            </button>
+          )}
           <button
             onClick={() => onSave({ nodes, edges })}
             className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors touch-manipulation min-h-[36px]"
@@ -321,9 +350,10 @@ interface Props {
   initialData?: DiagramData;
   onSave: (data: DiagramData) => void;
   onClose?: () => void;
+  onInsert?: (dataUrl: string) => Promise<void>;
 }
 
-export default function DiagramEditor({ initialData, onSave, onClose }: Props) {
+export default function DiagramEditor({ initialData, onSave, onClose, onInsert }: Props) {
   const defaultNodes: Node[] = initialData?.nodes ?? [];
   const defaultEdges: Edge[] = initialData?.edges ?? [];
 
@@ -334,6 +364,7 @@ export default function DiagramEditor({ initialData, onSave, onClose }: Props) {
         initialEdges={defaultEdges}
         onSave={onSave}
         onClose={onClose}
+        onInsert={onInsert}
       />
     </ReactFlowProvider>
   );

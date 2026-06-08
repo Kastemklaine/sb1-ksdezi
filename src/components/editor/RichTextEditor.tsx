@@ -7,8 +7,8 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
-import { Bold, Italic, UnderlineIcon, List, ListOrdered, AlignLeft, AlignCenter, Heading1, Heading2, CheckSquare, Highlighter, ImageIcon, Loader2 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { Bold, Italic, UnderlineIcon, List, ListOrdered, AlignLeft, AlignCenter, Heading1, Heading2, CheckSquare, Highlighter, ImageIcon, Loader2, GitBranch } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../lib/firebase';
 
@@ -18,9 +18,11 @@ interface Props {
   placeholder?: string;
   readOnly?: boolean;
   enableImageUpload?: boolean;
+  onInsertDiagram?: () => void;
+  insertImageSrc?: string;
 }
 
-export default function RichTextEditor({ content, onChange, placeholder = 'Écrivez ici...', readOnly = false, enableImageUpload = false }: Props) {
+export default function RichTextEditor({ content, onChange, placeholder = 'Écrivez ici...', readOnly = false, enableImageUpload = false, onInsertDiagram, insertImageSrc }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
@@ -33,12 +35,18 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Écri
       TaskItem.configure({ nested: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Placeholder.configure({ placeholder }),
-      Image.configure({ inline: false, allowBase64: false }),
+      Image.configure({ inline: false, allowBase64: true }),
     ],
     content,
     editable: !readOnly,
     onUpdate: ({ editor }) => onChange?.(editor.getHTML()),
   });
+
+  useEffect(() => {
+    if (editor && insertImageSrc) {
+      editor.chain().focus().setImage({ src: insertImageSrc }).run();
+    }
+  }, [insertImageSrc]);
 
   const handleImageUpload = (file: File) => {
     if (!editor) return;
@@ -121,6 +129,20 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Écri
                 e.target.value = '';
               }}
             />
+          </>
+        )}
+        {onInsertDiagram && (
+          <>
+            <div className="w-px bg-gray-300 mx-1" />
+            <button
+              type="button"
+              title="Insérer un schéma"
+              onClick={onInsertDiagram}
+              className="flex items-center gap-1 px-2 py-1.5 rounded transition-colors text-purple-600 hover:bg-purple-50 text-xs font-medium"
+            >
+              <GitBranch className="w-4 h-4" />
+              <span className="hidden sm:inline">Schéma</span>
+            </button>
           </>
         )}
       </div>

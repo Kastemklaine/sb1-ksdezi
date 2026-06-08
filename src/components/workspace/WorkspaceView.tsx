@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Plus, Trash2, X, FileText, MessageSquare, Send, ChevronDown, ChevronRight, FolderPlus, ArrowLeft, GitBranch } from 'lucide-react';
+import { Plus, Trash2, X, FileText, MessageSquare, Send, ChevronDown, ChevronRight, FolderPlus, ArrowLeft, GitBranch, Network, BrainCircuit, Square } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RichTextEditor from '../editor/RichTextEditor';
 import DiagramEditor, { type DiagramData } from '../diagrams/DiagramEditor';
 import type { WorkspaceDocument } from '../../types';
 import type { View } from '../../App';
+import type { Node, Edge } from '@xyflow/react';
 
 interface Props {
   workstreamId: string;
@@ -46,6 +47,13 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
   const [docContent, setDocContent] = useState('');
   const [showNewSubSection, setShowNewSubSection] = useState(false);
   const [newSubName, setNewSubName] = useState('');
+
+  // Diagram insert state
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [showDiagramInserter, setShowDiagramInserter] = useState(false);
+  const [diagramInsertNodes, setDiagramInsertNodes] = useState<Node[]>([]);
+  const [diagramInsertEdges, setDiagramInsertEdges] = useState<Edge[]>([]);
+  const [insertImageSrc, setInsertImageSrc] = useState<string | undefined>(undefined);
 
   // Collapsed state for final sections
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -116,13 +124,87 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
 
   const getUserName = (userId: string) => users.find(u => u.id === userId)?.name ?? userId;
 
+  const DIAGRAM_TEMPLATES: { key: string; label: string; icon: React.ElementType; nodes: Node[]; edges: Edge[] }[] = [
+    {
+      key: 'libre',
+      label: 'Libre',
+      icon: Square,
+      nodes: [],
+      edges: [],
+    },
+    {
+      key: 'logigramme',
+      label: 'Logigramme',
+      icon: GitBranch,
+      nodes: [
+        { id: '1', position: { x: 200, y: 50 }, data: { label: 'Début' }, style: { background: '#22c55e', color: '#fff', border: '2px solid #16a34a', borderRadius: '20px', padding: '10px 16px' } },
+        { id: '2', position: { x: 200, y: 160 }, data: { label: 'Processus' }, style: { background: '#6366f1', color: '#fff', border: '2px solid #4338ca', borderRadius: '8px', padding: '10px 16px' } },
+        { id: '3', position: { x: 200, y: 270 }, data: { label: 'Décision' }, style: { background: '#f59e0b', color: '#fff', border: '2px solid #d97706', transform: 'rotate(45deg)', width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' } },
+        { id: '4', position: { x: 200, y: 400 }, data: { label: 'Fin' }, style: { background: '#ef4444', color: '#fff', border: '2px solid #dc2626', borderRadius: '20px', padding: '10px 16px' } },
+      ],
+      edges: [
+        { id: 'e1-2', source: '1', target: '2' },
+        { id: 'e2-3', source: '2', target: '3' },
+        { id: 'e3-4', source: '3', target: '4' },
+      ],
+    },
+    {
+      key: 'organigramme',
+      label: 'Organigramme',
+      icon: Network,
+      nodes: [
+        { id: '1', position: { x: 250, y: 50 }, data: { label: 'Direction' }, style: { background: '#6366f1', color: '#fff', border: '2px solid #4338ca', borderRadius: '8px', padding: '10px 16px' } },
+        { id: '2', position: { x: 50, y: 200 }, data: { label: 'Service A' }, style: { background: '#22c55e', color: '#fff', border: '2px solid #16a34a', borderRadius: '8px', padding: '10px 16px' } },
+        { id: '3', position: { x: 250, y: 200 }, data: { label: 'Service B' }, style: { background: '#22c55e', color: '#fff', border: '2px solid #16a34a', borderRadius: '8px', padding: '10px 16px' } },
+        { id: '4', position: { x: 450, y: 200 }, data: { label: 'Service C' }, style: { background: '#22c55e', color: '#fff', border: '2px solid #16a34a', borderRadius: '8px', padding: '10px 16px' } },
+      ],
+      edges: [
+        { id: 'e1-2', source: '1', target: '2' },
+        { id: 'e1-3', source: '1', target: '3' },
+        { id: 'e1-4', source: '1', target: '4' },
+      ],
+    },
+    {
+      key: 'mental',
+      label: 'Carte mentale',
+      icon: BrainCircuit,
+      nodes: [
+        { id: '1', position: { x: 250, y: 200 }, data: { label: 'Idée centrale' }, style: { background: '#8b5cf6', color: '#fff', border: '2px solid #7c3aed', borderRadius: '50px', padding: '12px 20px', fontWeight: 'bold' } },
+        { id: '2', position: { x: 50, y: 80 }, data: { label: 'Thème 1' }, style: { background: '#06b6d4', color: '#fff', border: '2px solid #0891b2', borderRadius: '8px', padding: '8px 14px' } },
+        { id: '3', position: { x: 450, y: 80 }, data: { label: 'Thème 2' }, style: { background: '#f59e0b', color: '#fff', border: '2px solid #d97706', borderRadius: '8px', padding: '8px 14px' } },
+        { id: '4', position: { x: 50, y: 320 }, data: { label: 'Thème 3' }, style: { background: '#ef4444', color: '#fff', border: '2px solid #dc2626', borderRadius: '8px', padding: '8px 14px' } },
+        { id: '5', position: { x: 450, y: 320 }, data: { label: 'Thème 4' }, style: { background: '#22c55e', color: '#fff', border: '2px solid #16a34a', borderRadius: '8px', padding: '8px 14px' } },
+      ],
+      edges: [
+        { id: 'e1-2', source: '1', target: '2' },
+        { id: 'e1-3', source: '1', target: '3' },
+        { id: 'e1-4', source: '1', target: '4' },
+        { id: 'e1-5', source: '1', target: '5' },
+      ],
+    },
+  ];
+
+  const handlePickTemplate = (tpl: typeof DIAGRAM_TEMPLATES[0]) => {
+    setDiagramInsertNodes(tpl.nodes);
+    setDiagramInsertEdges(tpl.edges);
+    setShowTemplatePicker(false);
+    setShowDiagramInserter(true);
+  };
+
+  const handleDiagramInsert = async (dataUrl: string) => {
+    setInsertImageSrc(dataUrl);
+    setShowDiagramInserter(false);
+    setTimeout(() => setInsertImageSrc(undefined), 500);
+  };
+
   if (!workstream) return <div className="text-gray-500">Axe introuvable.</div>;
 
   // Document editor overlay
   if (editingDoc) {
     const isDiagram = editingDoc.type === 'diagram';
     return (
-      <div className="flex flex-col h-full">
+      <>
+        <div className="flex flex-col h-full">
         <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => setEditingDoc(null)}
@@ -159,17 +241,70 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
               />
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 relative">
               <RichTextEditor
                 content={docContent}
                 onChange={setDocContent}
                 placeholder="Rédigez votre contenu..."
                 enableImageUpload
+                onInsertDiagram={() => setShowTemplatePicker(true)}
+                insertImageSrc={insertImageSrc}
               />
             </div>
           )}
         </div>
       </div>
+
+      {/* Template picker modal */}
+      {showTemplatePicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Choisir un modèle</h3>
+              <button onClick={() => setShowTemplatePicker(false)} className="p-1 rounded hover:bg-gray-100 text-gray-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {DIAGRAM_TEMPLATES.map(tpl => (
+                <button
+                  key={tpl.key}
+                  onClick={() => handlePickTemplate(tpl)}
+                  className="flex flex-col items-center gap-2 p-4 border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50 rounded-xl transition-colors touch-manipulation"
+                >
+                  <tpl.icon className="w-8 h-8 text-purple-600" />
+                  <span className="text-sm font-medium text-gray-800">{tpl.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Diagram inserter overlay */}
+      {showDiagramInserter && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-white">
+          <div className="flex items-center gap-3 p-3 bg-gray-50 border-b border-gray-200">
+            <button
+              onClick={() => setShowDiagramInserter(false)}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 touch-manipulation min-h-[36px]"
+            >
+              <X className="w-4 h-4" />
+              Annuler
+            </button>
+            <span className="text-sm text-gray-500">Dessinez votre schéma puis cliquez sur <strong>Insérer</strong></span>
+          </div>
+          <div className="flex-1 min-h-0">
+            <DiagramEditor
+              initialData={{ nodes: diagramInsertNodes, edges: diagramInsertEdges }}
+              onSave={() => {}}
+              onClose={() => setShowDiagramInserter(false)}
+              onInsert={handleDiagramInsert}
+            />
+          </div>
+        </div>
+      )}
+      </>
     );
   }
 
