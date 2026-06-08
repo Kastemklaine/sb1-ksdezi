@@ -67,21 +67,21 @@ async function callOllama(
   return full;
 }
 
-async function callAnthropic(
+async function callGroq(
   apiKey: string,
+  model: string,
   messages: { role: string; content: string }[],
   system: string,
   onChunk: (t: string) => void
 ): Promise<string> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2048, stream: true, system, messages }),
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'system', content: system }, ...messages],
+      stream: true,
+    }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
@@ -99,11 +99,11 @@ async function callAnthropic(
     for (const line of lines) {
       if (!line.startsWith('data: ')) continue;
       const data = line.slice(6).trim();
+      if (data === '[DONE]') continue;
       try {
         const evt = JSON.parse(data);
-        if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
-          full += evt.delta.text; onChunk(full);
-        }
+        const token = evt.choices?.[0]?.delta?.content ?? '';
+        if (token) { full += token; onChunk(full); }
       } catch { /* skip */ }
     }
   }
@@ -179,10 +179,10 @@ async function searchDataGouv(query: string): Promise<DataGouvDataset[]> {
 export default function IAView() {
   const { config, setConfig, conversations, createConversation, addMessage, deleteConversation, renameConversation } = useIAStore();
   const documents = useProjectStore(s => curProject(s)?.iaDocuments ?? []);
-  const projectAnthropicKey = useProjectStore(s => curProject(s)?.anthropicKey ?? '');
+  const projectGroqKey = useProjectStore(s => curProject(s)?.groqKey ?? '');
   const currentProjectId = useProjectStore(s => s.currentProjectId);
   // Effective key: project-synced key takes priority over local config
-  const effectiveAnthropicKey = projectAnthropicKey || config.anthropicKey;
+  const effectiveGroqKey = projectGroqKey || config.groqKey;
   const addDocument = useProjectStore(s => s.addIADocument);
   const updateDocument = useProjectStore(s => s.updateIADocument);
   const deleteDocument = useProjectStore(s => s.deleteIADocument);
@@ -203,7 +203,8 @@ export default function IAView() {
   const [cfgProvider, setCfgProvider] = useState<IAProvider>(config.provider);
   const [cfgOllamaUrl, setCfgOllamaUrl] = useState(config.ollamaUrl);
   const [cfgOllamaModel, setCfgOllamaModel] = useState(config.ollamaModel);
-  const [cfgAnthropicKey, setCfgAnthropicKey] = useState(config.anthropicKey);
+  const [cfgGroqKey, setCfgGroqKey] = useState(config.groqKey);
+  const [cfgGroqModel, setCfgGroqModel] = useState(config.groqModel);
 
   // Knowledge base editing
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
@@ -242,7 +243,7 @@ export default function IAView() {
   }, [decrypted, streamingText]);
 
   const isOllamaOnWeb = config.provider === 'ollama' && typeof window !== 'undefined' && !window.location.hostname.includes('localhost');
-  const isConfigured = !!effectiveAnthropicKey || (config.provider === 'ollama' && !isOllamaOnWeb);
+  const isConfigured = !!effectiveGroqKey || (config.provider === 'ollama' && !isOllamaOnWeb);
 
   const ensureConv = () => {
     if (activeConvId && conversations.find(c => c.id === activeConvId)) return activeConvId;
@@ -277,11 +278,11 @@ export default function IAView() {
       const system = SYSTEM_PROMPT(documents);
       let fullText = '';
 
-      if (config.provider === 'ollama' && !isOllamaOnWeb && !effectiveAnthropicKey) {
+      if (config.provider === 'ollama' && !isOllamaOnWeb && !effectiveGroqKey) {
         const ollamaMessages = [{ role: 'system', content: system }, ...history];
         fullText = await callOllama(config.ollamaUrl, config.ollamaModel, ollamaMessages, setStreamingText);
       } else {
-        fullText = await callAnthropic(effectiveAnthropicKey, history, system, setStreamingText);
+        fullText = await callGroq(effectiveGroqKey, config.groqModel, history, system, setStreamingText);
       }
 
       addMessage(convId, { role: 'assistant', content: await encryptText(fullText) });
@@ -290,9 +291,9 @@ export default function IAView() {
       let msg = err instanceof Error ? err.message : String(err);
       if (msg === 'Failed to fetch' || msg.includes('Failed to fetch')) {
         if (config.provider === 'ollama') {
-          msg = `Impossible de contacter Ollama à l'adresse "${config.ollamaUrl}". Vérifiez qu'Ollama est en cours d'exécution sur votre machine locale, ou configurez le fournisseur Anthropic (clé API) dans les paramètres de l'IA.`;
+          msg = `Impossible de contacter Ollama à l'adresse "${config.ollamaUrl}". Vérifiez qu'Ollama est en cours d'exécution sur votre machine locale, ou configurez le fournisseur Groq (clé API gratuite) dans les paramètres de l'IA.`;
         } else {
-          msg = `Impossible de contacter l'API Anthropic. Vérifiez votre connexion internet et votre clé API dans les paramètres de l'IA.`;
+          msg = `Impossible de contacter l'API Groq. Vérifiez votre connexion internet et votre clé API dans les paramètres de l'IA.`;
         }
       }
       addMessage(convId, { role: 'assistant', content: await encryptText(`⚠️ Erreur : ${msg}`) });
@@ -307,13 +308,14 @@ export default function IAView() {
     setCfgProvider(config.provider);
     setCfgOllamaUrl(config.ollamaUrl);
     setCfgOllamaModel(config.ollamaModel);
-    setCfgAnthropicKey(config.anthropicKey);
+    setCfgGroqKey(config.groqKey);
+    setCfgGroqModel(config.groqModel);
     setShowConfig(true);
   };
 
   const saveConfig = () => {
-    const trimmedKey = cfgAnthropicKey.trim();
-    setConfig({ provider: cfgProvider, ollamaUrl: cfgOllamaUrl.trim(), ollamaModel: cfgOllamaModel.trim(), anthropicKey: trimmedKey });
+    const trimmedKey = cfgGroqKey.trim();
+    setConfig({ provider: cfgProvider, ollamaUrl: cfgOllamaUrl.trim(), ollamaModel: cfgOllamaModel.trim(), groqKey: trimmedKey, groqModel: cfgGroqModel.trim() });
     if (isAdmin && trimmedKey) {
       useProjectStore.getState().setAnthropicKey(trimmedKey);
     }
@@ -500,7 +502,7 @@ export default function IAView() {
             <button onClick={openConfig}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${isConfigured ? 'border-green-200 bg-green-50 text-green-700' : 'border-orange-200 bg-orange-50 text-orange-700'}`}>
               <Settings2 className="w-3.5 h-3.5" />
-              {isConfigured ? (config.provider === 'ollama' ? `Ollama · ${config.ollamaModel}` : 'Anthropic') : 'Configurer'}
+              {isConfigured ? (config.provider === 'ollama' ? `Ollama · ${config.ollamaModel}` : `Groq · ${config.groqModel}`) : 'Configurer'}
             </button>
           </div>
         </div>
@@ -521,7 +523,7 @@ export default function IAView() {
                   <div className="flex flex-col gap-2 items-center text-xs text-gray-400">
                     {config.provider === 'ollama'
                       ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium">Ollama local — gratuit &amp; privé</span>
-                      : <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium">Anthropic Claude</span>}
+                      : <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium">Groq · {config.groqModel}</span>}
                     {documents.length > 0 && <span className="bg-gray-100 px-3 py-1 rounded-full">{documents.length} document{documents.length > 1 ? 's' : ''} dans la base</span>}
                   </div>
                 </div>
@@ -555,7 +557,7 @@ export default function IAView() {
             <div className="border-t border-gray-200 bg-white px-3 py-3 shrink-0">
               {(!isConfigured || isOllamaOnWeb) && (
                 <div className="mb-2 p-2.5 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-700 flex items-center justify-between gap-2">
-                  <span>{isOllamaOnWeb ? '⚠️ Ollama ne fonctionne pas en ligne — configurez Anthropic' : '⚠️ IA non configurée'}</span>
+                  <span>{isOllamaOnWeb ? '⚠️ Ollama ne fonctionne pas en ligne — configurez Groq (gratuit)' : '⚠️ IA non configurée'}</span>
                   <button onClick={openConfig} className="underline font-medium whitespace-nowrap">Configurer</button>
                 </div>
               )}
@@ -759,11 +761,11 @@ export default function IAView() {
                     <span className="text-xs text-green-600 font-medium">100% gratuit · 100% local</span>
                     <span className="text-xs text-gray-500">Tourne sur votre ordinateur</span>
                   </button>
-                  <button onClick={() => setCfgProvider('anthropic')}
-                    className={`flex flex-col items-start gap-1 p-3 rounded-xl border-2 transition-all text-left ${cfgProvider === 'anthropic' ? 'border-[#00c875] bg-[#00c875]/5' : 'border-gray-200 hover:border-gray-300'}`}>
-                    <span className="font-semibold text-sm text-gray-800">Anthropic Claude</span>
-                    <span className="text-xs text-blue-600 font-medium">Meilleure qualité</span>
-                    <span className="text-xs text-gray-500">Nécessite une clé API payante</span>
+                  <button onClick={() => setCfgProvider('groq')}
+                    className={`flex flex-col items-start gap-1 p-3 rounded-xl border-2 transition-all text-left ${cfgProvider === 'groq' ? 'border-[#00c875] bg-[#00c875]/5' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <span className="font-semibold text-sm text-gray-800">Groq Cloud</span>
+                    <span className="text-xs text-green-600 font-medium">Gratuit · Rapide · En ligne</span>
+                    <span className="text-xs text-gray-500">Clé gratuite sur console.groq.com</span>
                   </button>
                 </div>
               </div>
@@ -792,13 +794,17 @@ export default function IAView() {
                 </div>
               )}
 
-              {cfgProvider === 'anthropic' && (
+              {cfgProvider === 'groq' && (
                 <div className="space-y-3">
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800">
-                    Clé API disponible sur <strong>console.anthropic.com</strong> → API Keys. Facturé à l'usage (~0,003€/message).
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 space-y-1">
+                    <p className="font-semibold">Obtenir une clé Groq gratuite :</p>
+                    <p>1. Allez sur <strong>console.groq.com</strong> et créez un compte (gratuit)</p>
+                    <p>2. Menu → <strong>API Keys</strong> → Create API key</p>
+                    <p>3. Copiez la clé et collez-la ci-dessous</p>
+                    <p className="text-green-700 font-medium mt-1">✓ Entièrement gratuit — aucune carte bancaire requise</p>
                   </div>
                   <div>
-                    {projectAnthropicKey ? (
+                    {projectGroqKey ? (
                       <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-800 flex items-center gap-2">
                         <span className="text-green-600">✓</span>
                         Clé API configurée par l'administrateur et synchronisée sur tous les appareils.
@@ -809,13 +815,22 @@ export default function IAView() {
                     ) : (
                       <>
                         <label className="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
-                          Clé API (sk-ant-…)
+                          Clé API Groq (gsk_…)
                           {isAdmin && <span className="normal-case font-normal text-green-600 ml-1">— sera synchronisée sur tous les appareils</span>}
                         </label>
-                        <input type="password" value={cfgAnthropicKey} onChange={e => setCfgAnthropicKey(e.target.value)} placeholder="sk-ant-api03-..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#00c875]" />
+                        <input type="password" value={cfgGroqKey} onChange={e => setCfgGroqKey(e.target.value)} placeholder="gsk_..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#00c875]" />
                         {!isAdmin && <p className="text-xs text-amber-600 mt-1">Seul un administrateur peut configurer la clé partagée. Contactez votre super admin.</p>}
                       </>
                     )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Modèle</label>
+                    <select value={cfgGroqModel} onChange={e => setCfgGroqModel(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875]">
+                      <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (rapide)</option>
+                      <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (meilleur)</option>
+                      <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
+                      <option value="gemma2-9b-it">gemma2-9b-it</option>
+                    </select>
                   </div>
                 </div>
               )}

@@ -134,7 +134,7 @@ export interface Project {
   name: string;
   subtitle: string;
   fonctions: string[];
-  anthropicKey?: string; // stored once by superadmin, synced to all devices
+  groqKey?: string; // stored once by superadmin, synced to all devices (free Groq API)
   workstreams: Workstream[];
   tasks: Task[];
   governance: GovernanceInstance[];

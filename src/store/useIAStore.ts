@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type IAProvider = 'ollama' | 'anthropic';
+export type IAProvider = 'ollama' | 'groq';
 
 export interface IAConfig {
   provider: IAProvider;
   ollamaUrl: string;
   ollamaModel: string;
-  anthropicKey: string;
+  groqKey: string;
+  groqModel: string;
 }
 
 export interface IAMessage {
@@ -43,7 +44,8 @@ export const useIAStore = create<IAStore>()(
         provider: 'ollama' as IAProvider,
         ollamaUrl: 'http://localhost:11434',
         ollamaModel: 'llama3.2',
-        anthropicKey: '',
+        groqKey: '',
+        groqModel: 'llama-3.1-8b-instant',
       },
       conversations: [],
 

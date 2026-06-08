@@ -331,7 +331,7 @@ export const useProjectStore = create<ProjectState>()(
       },
 
       setAnthropicKey: (key) => {
-        updateCur(set, () => ({ anthropicKey: key }));
+        updateCur(set, () => ({ groqKey: key }));
       },
 
       syncFromRemote: (project) => {
