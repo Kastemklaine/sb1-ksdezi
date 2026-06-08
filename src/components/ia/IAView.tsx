@@ -277,50 +277,71 @@ export default function IAView() {
     }
   };
 
+  const sidebarContent = (
+    <>
+      <button
+        onClick={() => { const id = createConversation(); setActiveConvId(id); setTab('chat'); setConvSidebarOpen(false); }}
+        className="flex items-center gap-2 mx-2 my-2 px-3 py-2 bg-[#00c875]/20 hover:bg-[#00c875]/30 text-[#00c875] rounded-lg text-sm font-medium transition-colors min-h-[44px]"
+      >
+        <Plus className="w-4 h-4" /> Nouvelle conversation
+      </button>
+      <div className="flex-1 overflow-y-auto px-2 space-y-0.5 pb-2">
+        {conversations.map(c => (
+          <button key={c.id} onClick={() => { setActiveConvId(c.id); setTab('chat'); setConvSidebarOpen(false); }}
+            className={`w-full text-left px-2 py-2 rounded-lg text-xs transition-colors group flex items-start gap-1 min-h-[44px] ${activeConvId === c.id ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'}`}>
+            <span className="truncate flex-1 py-1">{c.title}</span>
+            <button onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); if (activeConvId === c.id) setActiveConvId(null); }}
+              className="opacity-0 group-hover:opacity-100 shrink-0 text-gray-600 hover:text-red-400 p-1">
+              <X className="w-3 h-3" />
+            </button>
+          </button>
+        ))}
+        {conversations.length === 0 && <p className="text-xs text-gray-600 px-2 py-4 text-center">Aucune conversation</p>}
+      </div>
+    </>
+  );
+
   return (
     <div className="flex h-[calc(100vh-64px)] gap-0 -mx-4 -mt-4 overflow-hidden">
 
-      {/* Conversations sidebar */}
-      <div className={`bg-gray-900 flex flex-col border-r border-white/10 transition-all ${convSidebarOpen ? 'w-60' : 'w-12'} shrink-0`}>
+      {/* Mobile sidebar backdrop */}
+      {convSidebarOpen && (
+        <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={() => setConvSidebarOpen(false)} />
+      )}
+
+      {/* Mobile sidebar drawer */}
+      <div className={`fixed inset-y-0 left-0 z-40 w-72 bg-gray-900 flex flex-col border-r border-white/10 transition-transform duration-200 md:hidden ${convSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex items-center justify-between px-3 py-3 border-b border-white/10">
+          <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Conversations</span>
+          <button onClick={() => setConvSidebarOpen(false)} className="p-2 rounded text-gray-400 hover:text-white min-w-[44px] min-h-[44px] flex items-center justify-center">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {sidebarContent}
+      </div>
+
+      {/* Desktop sidebar */}
+      <div className={`hidden md:flex flex-col bg-gray-900 border-r border-white/10 transition-all ${convSidebarOpen ? 'w-60' : 'w-12'} shrink-0`}>
         <div className={`flex items-center gap-2 px-3 py-3 border-b border-white/10 ${convSidebarOpen ? 'justify-between' : 'justify-center'}`}>
           {convSidebarOpen && <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Conversations</span>}
           <button onClick={() => setConvSidebarOpen(o => !o)} className="p-1 rounded text-gray-400 hover:text-white transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center">
             <MessageSquare className="w-4 h-4" />
           </button>
         </div>
-        {convSidebarOpen && (
-          <>
-            <button
-              onClick={() => { const id = createConversation(); setActiveConvId(id); setTab('chat'); }}
-              className="flex items-center gap-2 mx-2 my-2 px-3 py-2 bg-[#00c875]/20 hover:bg-[#00c875]/30 text-[#00c875] rounded-lg text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" /> Nouvelle
-            </button>
-            <div className="flex-1 overflow-y-auto px-2 space-y-0.5 pb-2">
-              {conversations.map(c => (
-                <button key={c.id} onClick={() => { setActiveConvId(c.id); setTab('chat'); }}
-                  className={`w-full text-left px-2 py-2 rounded-lg text-xs transition-colors group flex items-start gap-1 ${activeConvId === c.id ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'}`}>
-                  <span className="truncate flex-1">{c.title}</span>
-                  <button onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); if (activeConvId === c.id) setActiveConvId(null); }}
-                    className="opacity-0 group-hover:opacity-100 shrink-0 text-gray-600 hover:text-red-400">
-                    <X className="w-3 h-3" />
-                  </button>
-                </button>
-              ))}
-              {conversations.length === 0 && <p className="text-xs text-gray-600 px-2 py-4 text-center">Aucune conversation</p>}
-            </div>
-          </>
-        )}
+        {convSidebarOpen && sidebarContent}
       </div>
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 bg-gray-50">
         {/* Toolbar */}
-        <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between gap-3 shrink-0">
+        <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2">
+            <button onClick={() => setConvSidebarOpen(o => !o)} className="md:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 min-w-[44px] min-h-[44px] flex items-center justify-center">
+              <MessageSquare className="w-4 h-4" />
+            </button>
             <Bot className="w-5 h-5 text-[#00c875]" />
-            <span className="font-semibold text-gray-800 text-sm">Assistant IA</span>
-            <span className="flex items-center gap-1 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+            <span className="font-semibold text-gray-800 text-sm hidden sm:inline">Assistant IA</span>
+            <span className="flex items-center gap-1 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full hidden sm:flex">
               <Lock className="w-3 h-3" /> Chiffré
             </span>
           </div>
@@ -368,7 +389,7 @@ export default function IAView() {
                 <>
                   {activeConv.messages.map(msg => (
                     <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${msg.role === 'user' ? 'bg-[#00c875] text-white rounded-br-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'}`}>
+                      <div className={`max-w-[90%] sm:max-w-[80%] rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 text-sm ${msg.role === 'user' ? 'bg-[#00c875] text-white rounded-br-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'}`}>
                         {msg.role === 'assistant' && (
                           <div className="flex items-center gap-1.5 mb-2 text-xs text-gray-400"><Bot className="w-3 h-3" /><span>Assistant</span></div>
                         )}
@@ -381,7 +402,7 @@ export default function IAView() {
                   ))}
                   {streamingText && (
                     <div className="flex justify-start">
-                      <div className="max-w-[80%] rounded-2xl rounded-bl-sm px-4 py-3 text-sm bg-white border border-gray-200 shadow-sm">
+                      <div className="max-w-[90%] sm:max-w-[80%] rounded-2xl rounded-bl-sm px-3 py-2.5 sm:px-4 sm:py-3 text-sm bg-white border border-gray-200 shadow-sm">
                         <div className="flex items-center gap-1.5 mb-2 text-xs text-gray-400"><Loader2 className="w-3 h-3 animate-spin" /><span>En train de répondre…</span></div>
                         <p className="whitespace-pre-wrap leading-relaxed text-gray-800">{streamingText}</p>
                       </div>
@@ -391,25 +412,25 @@ export default function IAView() {
                 </>
               )}
             </div>
-            <div className="border-t border-gray-200 bg-white px-4 py-3 shrink-0">
+            <div className="border-t border-gray-200 bg-white px-3 py-3 shrink-0">
               {!isConfigured && (
                 <div className="mb-2 p-2.5 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-700 flex items-center justify-between gap-2">
                   <span>⚠️ IA non configurée</span>
-                  <button onClick={openConfig} className="underline font-medium">Configurer</button>
+                  <button onClick={openConfig} className="underline font-medium whitespace-nowrap">Configurer</button>
                 </div>
               )}
               {documents.length === 0 && (
                 <div className="mb-2 p-2.5 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-700">
-                  ⚠️ Base de connaissances vide — {isAdmin ? <span>ajoutez des documents dans l'onglet <strong>Base de connaissances</strong>.</span> : "demandez à un administrateur d'ajouter des documents."}
+                  ⚠️ Base vide — {isAdmin ? <span>ajoutez des documents.</span> : "contactez un administrateur."}
                 </div>
               )}
               <div className="flex gap-2 items-end">
                 <textarea value={input} onChange={e => setInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                  placeholder="Posez votre question… (Entrée pour envoyer)"
-                  rows={1} className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#00c875] max-h-32" style={{ minHeight: '44px' }} />
+                  placeholder="Votre question…"
+                  rows={1} className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#00c875] max-h-32" style={{ minHeight: '44px' }} />
                 <button onClick={handleSend} disabled={!input.trim() || loading}
-                  className="h-11 w-11 flex items-center justify-center bg-[#00c875] hover:bg-[#00b368] disabled:opacity-40 text-white rounded-xl transition-colors shrink-0">
+                  className="h-11 w-11 flex items-center justify-center bg-[#00c875] hover:bg-[#00b368] disabled:opacity-40 text-white rounded-xl transition-colors shrink-0 min-w-[44px]">
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 </button>
               </div>
