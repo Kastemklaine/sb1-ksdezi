@@ -751,7 +751,7 @@ export default function IAView() {
                 <select value={cfgModel} onChange={e => setCfgModel(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875]">
                   <option value="llama-3.1-8b-instant">llama-3.1-8b-instant — rapide</option>
                   <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile — meilleur</option>
-                  <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
+                  <option value="llama3-70b-8192">llama3-70b-8192</option>
                   <option value="gemma2-9b-it">gemma2-9b-it</option>
                 </select>
               </div>
