@@ -18,7 +18,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.m
 
 type Tab = 'chat' | 'knowledge';
 
-const DEFAULT_MODEL = 'llama-3.1-8b-instant';
+const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
 
 const SYSTEM_PROMPT = (docs: IADocument[]) =>
   `Tu es l'assistant IA officiel du projet "Projet's ma Ville", un projet municipal de participation citoyenne.
@@ -35,7 +35,12 @@ RÈGLES STRICTES :
 BASE DE CONNAISSANCES :
 ${docs.length === 0
     ? '⚠️ Aucun document dans la base de connaissances. Tu ne peux répondre à aucune question factuelle pour l\'instant.'
-    : docs.map(d => `--- [${d.title}] ---\n${d.content.slice(0, 6000)}`).join('\n\n')}`;
+    : (() => {
+        // Keep total doc context under ~4000 chars to stay within free tier token limit
+        const MAX_TOTAL = 4000;
+        const MAX_PER_DOC = Math.min(1500, Math.floor(MAX_TOTAL / docs.length));
+        return docs.map(d => `--- [${d.title}] ---\n${d.content.slice(0, MAX_PER_DOC)}`).join('\n\n');
+      })()}`;
 
 async function callGroq(
   apiKey: string,
@@ -239,7 +244,7 @@ export default function IAView() {
 
     try {
       const history: { role: string; content: string }[] = [];
-      const recentMessages = (conv?.messages ?? []).slice(-20); // keep last 20 messages to stay within context limit
+      const recentMessages = (conv?.messages ?? []).slice(-6); // keep last 6 messages to stay within free tier token limit
       for (const msg of recentMessages) {
         try { history.push({ role: msg.role, content: await decryptText(msg.content) }); } catch { /* skip */ }
       }
@@ -749,10 +754,10 @@ export default function IAView() {
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Modèle</label>
                 <select value={cfgModel} onChange={e => setCfgModel(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875]">
+                  <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile — recommandé</option>
                   <option value="llama-3.1-8b-instant">llama-3.1-8b-instant — rapide</option>
-                  <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile — meilleur</option>
-                  <option value="llama3-70b-8192">llama3-70b-8192</option>
-                  <option value="gemma2-9b-it">gemma2-9b-it</option>
+                  <option value="llama-3.1-70b-versatile">llama-3.1-70b-versatile</option>
+                  <option value="meta-llama/llama-4-scout-17b-16e-instruct">llama-4-scout-17b — plus récent</option>
                 </select>
               </div>
 
