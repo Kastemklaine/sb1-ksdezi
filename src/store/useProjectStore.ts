@@ -15,10 +15,16 @@ const WORKSTREAMS: Workstream[] = [
   { id: 'ws9', name: 'Mobilité, voirie & accessibilité', color: 'bg-orange-500', textColor: 'text-white', description: 'Accessibilité des cheminements, voirie et mobilité douce', notes: '', icon: 'Car', instance: 'cotec', assigneeIds: [], subSections: [] },
 ];
 
+const DEFAULT_FONCTIONS = [
+  'Adjoint(e)', 'Conseiller/Conseillère', 'Délégué(e)', 'Directeur/Directrice',
+  'Élu(e)', 'Chef de projet', 'Chargé(e) de mission', 'Coordinateur/Coordinatrice',
+];
+
 const DEFAULT_PROJECT: Project = {
   id: 'proj1',
   name: "Projet's ma Ville",
   subtitle: 'Vers la 4e fleur',
+  fonctions: DEFAULT_FONCTIONS,
   workstreams: WORKSTREAMS,
   tasks: [],
   governance: [
@@ -72,6 +78,9 @@ interface ProjectState {
   addIADocument: (doc: { title: string; content: string; imageData?: string }) => void;
   updateIADocument: (id: string, patch: { title?: string; content?: string; imageData?: string }) => void;
   deleteIADocument: (id: string) => void;
+  // Fonctions (function/title badges)
+  addFonction: (label: string) => void;
+  removeFonction: (label: string) => void;
   // Sync: replace a project with remote data
   syncFromRemote: (project: Project) => void;
 }
@@ -102,6 +111,7 @@ export const useProjectStore = create<ProjectState>()(
           id: uuid(),
           name,
           subtitle,
+          fonctions: [...DEFAULT_FONCTIONS],
           workstreams: [],
           tasks: [],
           governance: [],
@@ -309,6 +319,14 @@ export const useProjectStore = create<ProjectState>()(
 
       deleteIADocument: (id) => {
         updateCur(set, p => ({ iaDocuments: (p.iaDocuments ?? []).filter(d => d.id !== id) }));
+      },
+
+      addFonction: (label) => {
+        updateCur(set, p => ({ fonctions: [...(p.fonctions ?? DEFAULT_FONCTIONS), label] }));
+      },
+
+      removeFonction: (label) => {
+        updateCur(set, p => ({ fonctions: (p.fonctions ?? DEFAULT_FONCTIONS).filter(f => f !== label) }));
       },
 
       syncFromRemote: (project) => {

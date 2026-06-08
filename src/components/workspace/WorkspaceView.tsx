@@ -22,6 +22,7 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
   const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
   const allDocuments = useProjectStore(s => curProject(s)?.documents ?? []);
   const allDiscussions = useProjectStore(s => curProject(s)?.discussions ?? []);
+  const allTasks = useProjectStore(s => curProject(s)?.tasks ?? []);
 
   const createDocument = useProjectStore(s => s.createDocument);
   const updateDocument = useProjectStore(s => s.updateDocument);
@@ -34,7 +35,8 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
   const subSections = workstream?.subSections ?? [];
 
   const isAdmin = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
-  const isMember = isAdmin || (currentUser?.workstreamIds ?? []).includes(workstreamId);
+  const isTaskAssignee = allTasks.some(t => t.workstreamId === workstreamId && t.assigneeIds.includes(currentUser?.id ?? ''));
+  const isMember = isAdmin || (currentUser?.workstreamIds ?? []).includes(workstreamId) || isTaskAssignee;
 
   const [activeTab, setActiveTab] = useState<TabType>('travail');
   const [selectedSubSection, setSelectedSubSection] = useState<string | null>(null);

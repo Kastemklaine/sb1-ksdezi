@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import React from 'react';
 import { useAuthStore } from './store/useAuthStore';
 import { useFirestoreSync } from './hooks/useFirestoreSync';
 import LoginPage from './components/auth/LoginPage';
@@ -36,21 +37,37 @@ export type View =
   | { type: 'legal' }
   | { type: 'ia' };
 
+function Forbidden() {
+  return (
+    <div className="flex flex-col items-center justify-center h-64 gap-3 text-gray-500">
+      <span className="text-4xl">🔒</span>
+      <p className="text-lg font-semibold">Accès refusé</p>
+      <p className="text-sm">Vous n'avez pas les droits nécessaires pour accéder à cette page.</p>
+    </div>
+  );
+}
+
 function AppInner({ view, setView }: { view: View; setView: (v: View) => void }) {
   useFirestoreSync();
   const currentUser = useAuthStore(s => s.currentUser);
   if (!currentUser) return <LoginPage />;
+
+  const isSuperAdmin = currentUser.role === 'superadmin';
+  const isAdmin = isSuperAdmin || currentUser.role === 'admin';
+
+  const guard = (allowed: boolean, component: React.ReactNode) => allowed ? component : <Forbidden />;
+
   return (
     <Layout view={view} setView={setView}>
       {view.type === 'dashboard' && <Dashboard setView={setView} />}
       {view.type === 'workstream' && <WorkstreamDetail workstreamId={view.id} setView={setView} />}
-      {view.type === 'users' && <UserManagement />}
+      {view.type === 'users' && guard(isSuperAdmin, <UserManagement />)}
       {view.type === 'finalpage' && <FinalPageView />}
-      {view.type === 'governance' && <GovernanceView />}
-      {view.type === 'settings' && <SettingsView />}
+      {view.type === 'governance' && guard(isAdmin, <GovernanceView />)}
+      {view.type === 'settings' && guard(isSuperAdmin, <SettingsView />)}
       {view.type === 'messaging' && <MessagingView />}
       {view.type === 'calendar' && <CalendarView setView={setView} />}
-      {view.type === 'projects' && <ProjectsView />}
+      {view.type === 'projects' && guard(isSuperAdmin, <ProjectsView />)}
       {view.type === 'workspaces' && <WorkspacesSelector setView={setView} />}
       {view.type === 'workspace' && <WorkspaceView workstreamId={view.workstreamId} setView={setView} />}
       {view.type === 'final-document' && <FinalDocumentView />}

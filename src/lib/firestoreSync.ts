@@ -16,6 +16,7 @@ function toArray<T>(val: T[] | Record<string, T> | null | undefined): T[] {
 function normalizeProject(p: Project): Project {
   return {
     ...p,
+    fonctions: toArray(p.fonctions ?? []),
     workstreams: toArray(p.workstreams).map(ws => ({
       ...ws,
       assigneeIds: toArray(ws.assigneeIds),

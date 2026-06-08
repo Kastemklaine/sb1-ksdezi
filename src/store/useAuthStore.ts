@@ -39,6 +39,9 @@ interface AuthState {
   updateUser: (id: string, data: Partial<User>) => void;
   deleteUser: (id: string) => void;
   updatePassword: (userId: string, newPassword: string) => void;
+  // Self-service profile
+  updateMyProfile: (data: { name?: string; firstName?: string; lastName?: string; email?: string; fonction?: string }) => void;
+  changeMyPassword: (currentPassword: string, newPassword: string) => boolean;
   // 2FA
   generateTwoFactorSecret: (userId: string) => string;
   enableTwoFactor: (userId: string, secret: string, token: string) => boolean;
@@ -115,6 +118,28 @@ export const useAuthStore = create<AuthState>()(
 
       deleteUser: (id) => {
         set(state => ({ users: state.users.filter(u => u.id !== id) }));
+      },
+
+      updateMyProfile: (data) => {
+        const user = get().currentUser;
+        if (!user) return;
+        set(state => ({
+          users: state.users.map(u => u.id === user.id ? { ...u, ...data } : u),
+          currentUser: { ...user, ...data },
+          passwords: data.email && data.email !== user.email
+            ? { ...Object.fromEntries(Object.entries(state.passwords).filter(([k]) => k !== user.email)), [data.email]: state.passwords[user.email] }
+            : state.passwords,
+        }));
+      },
+
+      changeMyPassword: (currentPassword, newPassword) => {
+        const user = get().currentUser;
+        if (!user) return false;
+        if (get().passwords[user.email] !== currentPassword) return false;
+        if (newPassword.length < 8) return false;
+        set(state => ({ passwords: { ...state.passwords, [user.email]: newPassword } }));
+        sendPasswordChangedEmail({ toEmail: user.email, toName: user.name });
+        return true;
       },
 
       updatePassword: (userId, newPassword) => {

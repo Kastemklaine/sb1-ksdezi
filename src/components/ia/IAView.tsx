@@ -165,7 +165,8 @@ export default function IAView() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [decrypted, streamingText]);
 
-  const isConfigured = config.provider === 'ollama' || !!config.anthropicKey;
+  const isOllamaOnWeb = config.provider === 'ollama' && typeof window !== 'undefined' && !window.location.hostname.includes('localhost');
+  const isConfigured = (config.provider === 'anthropic' && !!config.anthropicKey) || (config.provider === 'ollama' && !isOllamaOnWeb);
 
   const ensureConv = () => {
     if (activeConvId && conversations.find(c => c.id === activeConvId)) return activeConvId;
@@ -210,9 +211,17 @@ export default function IAView() {
       addMessage(convId, { role: 'assistant', content: await encryptText(fullText) });
       setStreamingText('');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+      let msg = err instanceof Error ? err.message : String(err);
+      if (msg === 'Failed to fetch' || msg.includes('Failed to fetch')) {
+        if (config.provider === 'ollama') {
+          msg = `Impossible de contacter Ollama à l'adresse "${config.ollamaUrl}". Vérifiez qu'Ollama est en cours d'exécution sur votre machine locale, ou configurez le fournisseur Anthropic (clé API) dans les paramètres de l'IA.`;
+        } else {
+          msg = `Impossible de contacter l'API Anthropic. Vérifiez votre connexion internet et votre clé API dans les paramètres de l'IA.`;
+        }
+      }
       addMessage(convId, { role: 'assistant', content: await encryptText(`⚠️ Erreur : ${msg}`) });
       setStreamingText('');
+      openConfig();
     } finally {
       setLoading(false);
     }
@@ -413,9 +422,9 @@ export default function IAView() {
               )}
             </div>
             <div className="border-t border-gray-200 bg-white px-3 py-3 shrink-0">
-              {!isConfigured && (
+              {(!isConfigured || isOllamaOnWeb) && (
                 <div className="mb-2 p-2.5 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-700 flex items-center justify-between gap-2">
-                  <span>⚠️ IA non configurée</span>
+                  <span>{isOllamaOnWeb ? '⚠️ Ollama ne fonctionne pas en ligne — configurez Anthropic' : '⚠️ IA non configurée'}</span>
                   <button onClick={openConfig} className="underline font-medium whitespace-nowrap">Configurer</button>
                 </div>
               )}
@@ -567,6 +576,10 @@ export default function IAView() {
 
               {cfgProvider === 'ollama' && (
                 <div className="space-y-3">
+                  <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-900 space-y-1">
+                    <p className="font-bold">⚠️ Ollama fonctionne uniquement en local</p>
+                    <p>Si l'application est hébergée en ligne (web), Ollama ne peut pas fonctionner — il tourne sur votre ordinateur, pas sur un serveur. Dans ce cas, utilisez <strong>Anthropic Claude</strong>.</p>
+                  </div>
                   <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-800 space-y-1">
                     <p className="font-semibold">Installation Ollama (une seule fois) :</p>
                     <p>1. Téléchargez <strong>ollama.com</strong> et installez-le</p>

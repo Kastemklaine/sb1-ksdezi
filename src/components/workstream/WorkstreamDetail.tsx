@@ -57,7 +57,8 @@ export default function WorkstreamDetail({ workstreamId, setView }: Props) {
 
   const isAdmin = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
   const isWsAssignee = !!(currentUser && ws?.assigneeIds?.includes(currentUser.id));
-  const canEdit = isAdmin || isWsAssignee;
+  const isTaskAssigneeInWs = wsTasks.some(t => t.assigneeIds.includes(currentUser?.id ?? ''));
+  const canEdit = isAdmin || isWsAssignee || isTaskAssigneeInWs;
 
   if (!ws) return <p className="text-gray-500">Axe introuvable.</p>;
 

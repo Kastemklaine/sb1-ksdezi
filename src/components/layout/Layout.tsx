@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import type { View } from '../../App';
 import TwoFactorSetup from '../profile/TwoFactorSetup';
+import MyProfileModal from '../profile/MyProfileModal';
 import QuimperleLogoK from '../ui/QuimperleLogoK';
 
 interface Props {
@@ -52,6 +53,7 @@ export default function Layout({ view, setView, children }: Props) {
   const [wsExpanded, setWsExpanded] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
+  const [showMyProfile, setShowMyProfile] = useState(false);
 
   const navigateTo = (v: View) => {
     setView(v);
@@ -340,6 +342,9 @@ export default function Layout({ view, setView, children }: Props) {
                   <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-20">
                     <div className="px-3 py-2 border-b border-gray-100">
                       <p className="text-sm font-medium text-gray-800">{currentUser?.name}</p>
+                      {currentUser?.fonction && (
+                        <p className="text-xs text-indigo-600 font-medium mt-0.5">{currentUser.fonction}</p>
+                      )}
                       <p className="text-xs text-gray-400 capitalize">{currentUser?.role}</p>
                       {currentUser?.twoFactorEnabled && (
                         <span className="text-xs text-green-600 flex items-center gap-1 mt-0.5">
@@ -366,6 +371,13 @@ export default function Layout({ view, setView, children }: Props) {
                         ))}
                       </div>
                     </div>
+                    <button
+                      onClick={() => { setShowMyProfile(true); setUserMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Users className="w-4 h-4 text-green-600" />
+                      Mon profil
+                    </button>
                     <button
                       onClick={() => { setShow2FA(true); setUserMenuOpen(false); }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -402,6 +414,7 @@ export default function Layout({ view, setView, children }: Props) {
       </div>
 
       {show2FA && <TwoFactorSetup onClose={() => setShow2FA(false)} />}
+      {showMyProfile && <MyProfileModal onClose={() => setShowMyProfile(false)} />}
     </div>
   );
 }

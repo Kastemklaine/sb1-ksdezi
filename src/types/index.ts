@@ -2,9 +2,12 @@ export type Role = 'superadmin' | 'admin' | 'membre';
 
 export interface User {
   id: string;
-  name: string;
+  name: string; // computed: firstName + ' ' + lastName
+  firstName?: string;
+  lastName?: string;
   email: string;
   role: Role;
+  fonction?: string; // e.g. "Adjoint(e)", "Directeur/Directrice"
   workstreamIds: string[];
   createdAt: string;
   twoFactorEnabled: boolean;
@@ -130,6 +133,7 @@ export interface Project {
   id: string;
   name: string;
   subtitle: string;
+  fonctions: string[]; // custom function/title badges
   workstreams: Workstream[];
   tasks: Task[];
   governance: GovernanceInstance[];
