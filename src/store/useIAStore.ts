@@ -78,6 +78,19 @@ export const useIAStore = create<IAStore>()(
         conversations: s.conversations.map(c => c.id === id ? { ...c, title } : c),
       })),
     }),
-    { name: 'ia-store-v1' }
+    {
+      name: 'ia-store-v1',
+      merge: (persisted: unknown, current) => {
+        const p = persisted as Partial<IAStore>;
+        return {
+          ...current,
+          ...p,
+          config: {
+            ...current.config,
+            ...(p.config ?? {}),
+          },
+        };
+      },
+    }
   )
 );

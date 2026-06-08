@@ -203,8 +203,8 @@ export default function IAView() {
   const [cfgProvider, setCfgProvider] = useState<IAProvider>(config.provider);
   const [cfgOllamaUrl, setCfgOllamaUrl] = useState(config.ollamaUrl);
   const [cfgOllamaModel, setCfgOllamaModel] = useState(config.ollamaModel);
-  const [cfgGroqKey, setCfgGroqKey] = useState(config.groqKey);
-  const [cfgGroqModel, setCfgGroqModel] = useState(config.groqModel);
+  const [cfgGroqKey, setCfgGroqKey] = useState(config.groqKey ?? '');
+  const [cfgGroqModel, setCfgGroqModel] = useState(config.groqModel ?? 'llama-3.1-8b-instant');
 
   // Knowledge base editing
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
@@ -315,7 +315,7 @@ export default function IAView() {
 
   const saveConfig = () => {
     const trimmedKey = cfgGroqKey.trim();
-    setConfig({ provider: cfgProvider, ollamaUrl: cfgOllamaUrl.trim(), ollamaModel: cfgOllamaModel.trim(), groqKey: trimmedKey, groqModel: cfgGroqModel.trim() });
+    setConfig({ provider: cfgProvider, ollamaUrl: (cfgOllamaUrl ?? '').trim(), ollamaModel: (cfgOllamaModel ?? '').trim(), groqKey: trimmedKey, groqModel: (cfgGroqModel ?? '').trim() });
     if (isAdmin && trimmedKey) {
       useProjectStore.getState().setGroqKey(trimmedKey);
     }
