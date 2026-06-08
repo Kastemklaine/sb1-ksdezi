@@ -30,6 +30,7 @@ const DEFAULT_PROJECT: Project = {
   discussions: [],
   events: [],
   messages: [],
+  iaDocuments: [],
   createdAt: new Date().toISOString(),
 };
 
@@ -67,6 +68,10 @@ interface ProjectState {
   sendMessage: (data: { fromId: string; fromName: string; toId: string | null; subject: string; body: string; attachments: MessageAttachment[] }) => void;
   markMessageRead: (messageId: string, userId: string) => void;
   deleteMessage: (messageId: string) => void;
+  // IA knowledge base (shared, managed by superadmin)
+  addIADocument: (doc: { title: string; content: string }) => void;
+  updateIADocument: (id: string, patch: { title?: string; content?: string }) => void;
+  deleteIADocument: (id: string) => void;
 }
 
 type SetFn = (partial: ProjectState | Partial<ProjectState> | ((state: ProjectState) => ProjectState | Partial<ProjectState>), replace?: boolean) => void;
@@ -103,6 +108,7 @@ export const useProjectStore = create<ProjectState>()(
           discussions: [],
           events: [],
           messages: [],
+          iaDocuments: [],
           createdAt: new Date().toISOString(),
         };
         set(s => ({ projects: [...s.projects, project], currentProjectId: project.id }));
@@ -286,6 +292,21 @@ export const useProjectStore = create<ProjectState>()(
 
       deleteMessage: (messageId) => {
         updateCur(set, p => ({ messages: (p.messages ?? []).filter(m => m.id !== messageId) }));
+      },
+
+      addIADocument: (doc) => {
+        const now = new Date().toISOString();
+        updateCur(set, p => ({ iaDocuments: [...(p.iaDocuments ?? []), { ...doc, id: uuid(), createdAt: now, updatedAt: now }] }));
+      },
+
+      updateIADocument: (id, patch) => {
+        updateCur(set, p => ({
+          iaDocuments: (p.iaDocuments ?? []).map(d => d.id === id ? { ...d, ...patch, updatedAt: new Date().toISOString() } : d),
+        }));
+      },
+
+      deleteIADocument: (id) => {
+        updateCur(set, p => ({ iaDocuments: (p.iaDocuments ?? []).filter(d => d.id !== id) }));
       },
     }),
     { name: 'project-store-v2' }

@@ -3,15 +3,17 @@ import {
   Bot, Send, Plus, Trash2, BookOpen, MessageSquare,
   Pencil, Check, X, Lock, FileText, ChevronDown, Loader2, Settings2
 } from 'lucide-react';
-import { useIAStore, type KnowledgeDoc, type IAProvider } from '../../store/useIAStore';
+import { useIAStore, type IAProvider } from '../../store/useIAStore';
+import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import type { IADocument } from '../../types';
 import { encryptText, decryptText } from '../../lib/crypto';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 type Tab = 'chat' | 'knowledge';
 
-const SYSTEM_PROMPT = (docs: KnowledgeDoc[]) =>
+const SYSTEM_PROMPT = (docs: IADocument[]) =>
   `Tu es l'assistant IA officiel du projet "Projet's ma Ville", un projet municipal de participation citoyenne.
 
 RÈGLES STRICTES :
@@ -104,8 +106,11 @@ async function callAnthropic(
 }
 
 export default function IAView() {
-  const { config, setConfig, documents, addDocument, updateDocument, deleteDocument,
-    conversations, createConversation, addMessage, deleteConversation, renameConversation } = useIAStore();
+  const { config, setConfig, conversations, createConversation, addMessage, deleteConversation, renameConversation } = useIAStore();
+  const documents = useProjectStore(s => curProject(s)?.iaDocuments ?? []);
+  const addDocument = useProjectStore(s => s.addIADocument);
+  const updateDocument = useProjectStore(s => s.updateIADocument);
+  const deleteDocument = useProjectStore(s => s.deleteIADocument);
   const currentUser = useAuthStore(s => s.currentUser);
   const isAdmin = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
 
@@ -217,7 +222,7 @@ export default function IAView() {
     setShowConfig(false);
   };
 
-  const startEditDoc = (doc: KnowledgeDoc) => { setEditingDocId(doc.id); setEditTitle(doc.title); setEditContent(doc.content); };
+  const startEditDoc = (doc: IADocument) => { setEditingDocId(doc.id); setEditTitle(doc.title); setEditContent(doc.content); };
   const saveEditDoc = () => { if (!editingDocId) return; updateDocument(editingDocId, { title: editTitle.trim(), content: editContent.trim() }); setEditingDocId(null); };
   const saveNewDoc = () => { if (!newTitle.trim() || !newContent.trim()) return; addDocument({ title: newTitle.trim(), content: newContent.trim() }); setNewTitle(''); setNewContent(''); setShowNewDoc(false); };
 

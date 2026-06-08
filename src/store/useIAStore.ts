@@ -5,17 +5,9 @@ export type IAProvider = 'ollama' | 'anthropic';
 
 export interface IAConfig {
   provider: IAProvider;
-  ollamaUrl: string;   // default: http://localhost:11434
-  ollamaModel: string; // default: llama3.2
+  ollamaUrl: string;
+  ollamaModel: string;
   anthropicKey: string;
-}
-
-export interface KnowledgeDoc {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface IAMessage {
@@ -34,12 +26,8 @@ export interface IAConversation {
 
 interface IAStore {
   config: IAConfig;
-  documents: KnowledgeDoc[];
   conversations: IAConversation[];
   setConfig: (c: Partial<IAConfig>) => void;
-  addDocument: (doc: Omit<KnowledgeDoc, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateDocument: (id: string, patch: Partial<Pick<KnowledgeDoc, 'title' | 'content'>>) => void;
-  deleteDocument: (id: string) => void;
   createConversation: () => string;
   addMessage: (convId: string, msg: Omit<IAMessage, 'id' | 'createdAt'>) => void;
   deleteConversation: (id: string) => void;
@@ -57,29 +45,9 @@ export const useIAStore = create<IAStore>()(
         ollamaModel: 'llama3.2',
         anthropicKey: '',
       },
-      documents: [],
       conversations: [],
 
       setConfig: (c) => set(s => ({ config: { ...s.config, ...c } })),
-
-      addDocument: (doc) => set(s => ({
-        documents: [...s.documents, {
-          ...doc,
-          id: uuid(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }],
-      })),
-
-      updateDocument: (id, patch) => set(s => ({
-        documents: s.documents.map(d => d.id === id
-          ? { ...d, ...patch, updatedAt: new Date().toISOString() }
-          : d),
-      })),
-
-      deleteDocument: (id) => set(s => ({
-        documents: s.documents.filter(d => d.id !== id),
-      })),
 
       createConversation: () => {
         const id = uuid();
