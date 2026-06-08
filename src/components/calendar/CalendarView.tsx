@@ -72,7 +72,7 @@ function taskToVEVENT(task: Task, wsName: string): string {
 }
 
 function generateICS(event: CalendarEvent): string {
-  return ['BEGIN:VCALENDAR', 'VERSION:2.0', "PRODID:-//Ville à hauteur d'enfant//FR", 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', eventToVEVENT(event), 'END:VCALENDAR'].join('\r\n');
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', "PRODID:-//Projet's ma Ville//FR", 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', eventToVEVENT(event), 'END:VCALENDAR'].join('\r\n');
 }
 
 function generateFullICS(events: CalendarEvent[], tasks: Task[], workstreams: { id: string; name: string }[]): string {
@@ -84,10 +84,10 @@ function generateFullICS(events: CalendarEvent[], tasks: Task[], workstreams: { 
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    "PRODID:-//Ville à hauteur d'enfant - Quimperlé//FR",
+    "PRODID:-//Projet's ma Ville - Quimperlé//FR",
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    `X-WR-CALNAME:Ville à hauteur d'enfant`,
+    `X-WR-CALNAME:Projet's ma Ville`,
     'X-WR-TIMEZONE:Europe/Paris',
     ...vevents,
     'END:VCALENDAR',
