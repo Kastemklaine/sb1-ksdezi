@@ -67,7 +67,7 @@ export default function LoginPage() {
             </div>
           )}
           <h1 className="text-2xl font-bold text-gray-900 text-center">
-            {step === 'totp' ? 'Vérification 2FA' : "Ville à hauteur d'enfant"}
+            {step === 'totp' ? 'Vérification 2FA' : "Projet's ma Ville"}
           </h1>
           <p className="text-green-600 font-medium mt-1">Vers la 4e fleur</p>
           <p className="text-gray-500 text-sm mt-2 text-center">

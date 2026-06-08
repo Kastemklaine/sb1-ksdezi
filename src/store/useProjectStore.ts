@@ -17,7 +17,7 @@ const WORKSTREAMS: Workstream[] = [
 
 const DEFAULT_PROJECT: Project = {
   id: 'proj1',
-  name: "Ville à hauteur d'enfant ; handicaps",
+  name: "Projet's ma Ville",
   subtitle: 'Vers la 4e fleur',
   workstreams: WORKSTREAMS,
   tasks: [],

@@ -12,7 +12,7 @@ import { fr } from 'date-fns/locale';
 type Tab = 'chat' | 'knowledge';
 
 const SYSTEM_PROMPT = (docs: KnowledgeDoc[]) => {
-  const base = `Tu es l'assistant IA officiel du projet "Ville à hauteur d'enfant — Quimperlé", un projet municipal de participation citoyenne centré sur les enfants.
+  const base = `Tu es l'assistant IA officiel du projet "Projet's ma Ville", un projet municipal de participation citoyenne centré sur les enfants.
 
 RÈGLES STRICTES :
 1. Tu ne réponds qu'à partir des documents de la base de connaissances fournie ci-dessous.
@@ -243,7 +243,7 @@ export default function IAView() {
         <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2">
             <Bot className="w-5 h-5 text-[#00c875]" />
-            <span className="font-semibold text-gray-800 text-sm">Assistant IA — Ville à hauteur d'enfant</span>
+            <span className="font-semibold text-gray-800 text-sm">Assistant IA — Projet's ma Ville</span>
             <span className="flex items-center gap-1 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
               <Lock className="w-3 h-3" /> Chiffré
             </span>

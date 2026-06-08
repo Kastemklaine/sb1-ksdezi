@@ -44,7 +44,7 @@ export function generateICS(event: ICSEvent): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    "PRODID:-//Ville à hauteur d'enfant//FR",
+    "PRODID:-//Projet's ma Ville//FR",
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',

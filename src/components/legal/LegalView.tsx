@@ -41,7 +41,7 @@ export default function LegalView() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Informations légales</h1>
         <p className="text-gray-500 mt-1 text-sm">
-          Site de gestion de projet — Ville à hauteur d'enfant ; handicaps — Quimperlé
+          Site de gestion de projet — Projet's ma Ville — Quimperlé
         </p>
       </div>
 
@@ -129,7 +129,7 @@ export default function LegalView() {
             <h2 className="text-base font-bold text-gray-900 mb-3">Limitation de responsabilité</h2>
             <p className="text-gray-700">
               Cette plateforme est réservée aux agents et partenaires désignés dans le cadre du projet
-              municipal « Ville à hauteur d'enfant ; handicaps ». La Commune de Quimperlé ne saurait
+              municipal « Projet's ma Ville ». La Commune de Quimperlé ne saurait
               être tenue responsable des dommages directs ou indirects résultant d'une utilisation
               non conforme de cet outil.
             </p>
@@ -145,7 +145,7 @@ export default function LegalView() {
             <p>
               Le traitement de vos données personnelles est fondé sur la mission d'intérêt public
               confiée à la Commune de Quimperlé (article 6.1.e du RGPD), dans le cadre du projet
-              « Ville à hauteur d'enfant ; handicaps ».
+              « Projet's ma Ville ».
             </p>
           </div>
 

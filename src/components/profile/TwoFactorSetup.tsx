@@ -27,7 +27,7 @@ export default function TwoFactorSetup({ onClose }: Props) {
     if (!currentUser) return;
     const newSecret = generateTwoFactorSecret(currentUser.id);
     setSecret(newSecret);
-    const otpauthUrl = generateURI({ secret: newSecret, label: currentUser.email, issuer: "Ville à hauteur d'enfant" });
+    const otpauthUrl = generateURI({ secret: newSecret, label: currentUser.email, issuer: "Projet's ma Ville" });
     const url = await QRCode.toDataURL(otpauthUrl, { width: 200, margin: 1 });
     setQrUrl(url);
     setStep('scan');
