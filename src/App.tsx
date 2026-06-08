@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuthStore } from './store/useAuthStore';
+import { useFirestoreSync } from './hooks/useFirestoreSync';
 import LoginPage from './components/auth/LoginPage';
 import Layout from './components/layout/Layout';
 import Dashboard from './components/dashboard/Dashboard';
@@ -35,12 +36,10 @@ export type View =
   | { type: 'legal' }
   | { type: 'ia' };
 
-export default function App() {
+function AppInner({ view, setView }: { view: View; setView: (v: View) => void }) {
+  useFirestoreSync();
   const currentUser = useAuthStore(s => s.currentUser);
-  const [view, setView] = useState<View>({ type: 'dashboard' });
-
   if (!currentUser) return <LoginPage />;
-
   return (
     <Layout view={view} setView={setView}>
       {view.type === 'dashboard' && <Dashboard setView={setView} />}
@@ -60,4 +59,13 @@ export default function App() {
       {view.type === 'ia' && <IAView />}
     </Layout>
   );
+}
+
+export default function App() {
+  const currentUser = useAuthStore(s => s.currentUser);
+  const [view, setView] = useState<View>({ type: 'dashboard' });
+
+  if (!currentUser) return <LoginPage />;
+
+  return <AppInner view={view} setView={setView} />;
 }

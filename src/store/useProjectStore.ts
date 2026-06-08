@@ -72,6 +72,8 @@ interface ProjectState {
   addIADocument: (doc: { title: string; content: string }) => void;
   updateIADocument: (id: string, patch: { title?: string; content?: string }) => void;
   deleteIADocument: (id: string) => void;
+  // Sync: replace a project with remote data
+  syncFromRemote: (project: Project) => void;
 }
 
 type SetFn = (partial: ProjectState | Partial<ProjectState> | ((state: ProjectState) => ProjectState | Partial<ProjectState>), replace?: boolean) => void;
@@ -307,6 +309,15 @@ export const useProjectStore = create<ProjectState>()(
 
       deleteIADocument: (id) => {
         updateCur(set, p => ({ iaDocuments: (p.iaDocuments ?? []).filter(d => d.id !== id) }));
+      },
+
+      syncFromRemote: (project) => {
+        set((s: ProjectState) => ({
+          projects: s.projects.some(p => p.id === project.id)
+            ? s.projects.map(p => p.id === project.id ? project : p)
+            : [...s.projects, project],
+          currentProjectId: project.id,
+        }));
       },
     }),
     { name: 'project-store-v2' }
