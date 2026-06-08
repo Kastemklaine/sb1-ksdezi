@@ -82,6 +82,7 @@ interface ProjectState {
   addFonction: (label: string) => void;
   removeFonction: (label: string) => void;
   setGroqKey: (key: string) => void;
+  setGroqModel: (model: string) => void;
   // Sync: replace a project with remote data
   syncFromRemote: (project: Project) => void;
 }
@@ -332,6 +333,10 @@ export const useProjectStore = create<ProjectState>()(
 
       setGroqKey: (key) => {
         updateCur(set, () => ({ groqKey: key }));
+      },
+
+      setGroqModel: (model) => {
+        updateCur(set, () => ({ groqModel: model }));
       },
 
       syncFromRemote: (project) => {

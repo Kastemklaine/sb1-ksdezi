@@ -6,7 +6,7 @@ import {
 import * as pdfjs from 'pdfjs-dist';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../lib/firebase';
-import { useIAStore, type IAProvider } from '../../store/useIAStore';
+import { useIAStore } from '../../store/useIAStore';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { IADocument } from '../../types';
@@ -17,6 +17,8 @@ import { fr } from 'date-fns/locale';
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).href;
 
 type Tab = 'chat' | 'knowledge';
+
+const DEFAULT_MODEL = 'llama-3.1-8b-instant';
 
 const SYSTEM_PROMPT = (docs: IADocument[]) =>
   `Tu es l'assistant IA officiel du projet "Projet's ma Ville", un projet municipal de participation citoyenne.
@@ -34,38 +36,6 @@ BASE DE CONNAISSANCES :
 ${docs.length === 0
     ? '⚠️ Aucun document dans la base de connaissances. Tu ne peux répondre à aucune question factuelle pour l\'instant.'
     : docs.map(d => `--- [${d.title}] ---\n${d.content}`).join('\n\n')}`;
-
-async function callOllama(
-  url: string, model: string,
-  messages: { role: string; content: string }[],
-  onChunk: (t: string) => void
-): Promise<string> {
-  const res = await fetch(`${url.replace(/\/$/, '')}/api/chat`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ model, messages, stream: true }),
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => res.statusText);
-    throw new Error(`Ollama ${res.status}: ${txt}`);
-  }
-  const reader = res.body!.getReader();
-  const dec = new TextDecoder();
-  let full = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    for (const line of dec.decode(value, { stream: true }).split('\n')) {
-      if (!line.trim()) continue;
-      try {
-        const obj = JSON.parse(line);
-        const token = obj?.message?.content ?? '';
-        if (token) { full += token; onChunk(full); }
-      } catch { /* partial line */ }
-    }
-  }
-  return full;
-}
 
 async function callGroq(
   apiKey: string,
@@ -133,7 +103,6 @@ function parseCSV(raw: string): { headers: string[]; rows: string[][] } {
   };
   const nonEmpty = lines.filter(l => l.trim());
   if (!nonEmpty.length) return { headers: [], rows: [] };
-  // Detect separator: semicolon or comma
   const firstLine = nonEmpty[0];
   const sep = (firstLine.split(';').length > firstLine.split(',').length) ? ';' : ',';
   const parseSep = sep === ';'
@@ -147,7 +116,7 @@ function parseCSV(raw: string): { headers: string[]; rows: string[][] } {
 function csvToText(raw: string, filename: string): string {
   const { headers, rows } = parseCSV(raw);
   if (!headers.length) return raw;
-  const maxRows = 500; // avoid huge documents
+  const maxRows = 500;
   const displayed = rows.slice(0, maxRows);
   const lines = displayed.map(row =>
     headers.map((h, i) => `${h}: ${row[i] ?? ''}`).join(' | ')
@@ -177,12 +146,13 @@ async function searchDataGouv(query: string): Promise<DataGouvDataset[]> {
 }
 
 export default function IAView() {
-  const { config, setConfig, conversations, createConversation, addMessage, deleteConversation, renameConversation } = useIAStore();
+  const { conversations, createConversation, addMessage, deleteConversation, renameConversation } = useIAStore();
   const documents = useProjectStore(s => curProject(s)?.iaDocuments ?? []);
-  const projectGroqKey = useProjectStore(s => curProject(s)?.groqKey ?? '');
+  const groqKey = useProjectStore(s => curProject(s)?.groqKey ?? '');
+  const groqModel = useProjectStore(s => curProject(s)?.groqModel ?? DEFAULT_MODEL);
   const currentProjectId = useProjectStore(s => s.currentProjectId);
-  // Effective key: project-synced key takes priority over local config
-  const effectiveGroqKey = projectGroqKey || config.groqKey;
+  const setGroqKey = useProjectStore(s => s.setGroqKey);
+  const setGroqModel = useProjectStore(s => s.setGroqModel);
   const addDocument = useProjectStore(s => s.addIADocument);
   const updateDocument = useProjectStore(s => s.updateIADocument);
   const deleteDocument = useProjectStore(s => s.deleteIADocument);
@@ -199,12 +169,9 @@ export default function IAView() {
   const [convSidebarOpen, setConvSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Config form state
-  const [cfgProvider, setCfgProvider] = useState<IAProvider>(config.provider);
-  const [cfgOllamaUrl, setCfgOllamaUrl] = useState(config.ollamaUrl);
-  const [cfgOllamaModel, setCfgOllamaModel] = useState(config.ollamaModel);
-  const [cfgGroqKey, setCfgGroqKey] = useState(config.groqKey ?? '');
-  const [cfgGroqModel, setCfgGroqModel] = useState(config.groqModel ?? 'llama-3.1-8b-instant');
+  // Config form state (admin only)
+  const [cfgKey, setCfgKey] = useState('');
+  const [cfgModel, setCfgModel] = useState(DEFAULT_MODEL);
 
   // Knowledge base editing
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
@@ -242,8 +209,7 @@ export default function IAView() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [decrypted, streamingText]);
 
-  const isOllamaOnWeb = config.provider === 'ollama' && typeof window !== 'undefined' && !window.location.hostname.includes('localhost');
-  const isConfigured = !!effectiveGroqKey || (config.provider === 'ollama' && !isOllamaOnWeb);
+  const isConfigured = !!groqKey;
 
   const ensureConv = () => {
     if (activeConvId && conversations.find(c => c.id === activeConvId)) return activeConvId;
@@ -255,7 +221,10 @@ export default function IAView() {
   const handleSend = async () => {
     const text = input.trim();
     if (!text || loading) return;
-    if (!isConfigured) { openConfig(); return; }
+    if (!isConfigured) {
+      if (isAdmin) openConfig();
+      return;
+    }
 
     const convId = ensureConv();
     setInput('');
@@ -276,49 +245,33 @@ export default function IAView() {
       history.push({ role: 'user', content: text });
 
       const system = SYSTEM_PROMPT(documents);
-      let fullText = '';
-
-      if (config.provider === 'ollama' && !isOllamaOnWeb && !effectiveGroqKey) {
-        const ollamaMessages = [{ role: 'system', content: system }, ...history];
-        fullText = await callOllama(config.ollamaUrl, config.ollamaModel, ollamaMessages, setStreamingText);
-      } else {
-        fullText = await callGroq(effectiveGroqKey, config.groqModel, history, system, setStreamingText);
-      }
+      const fullText = await callGroq(groqKey, groqModel, history, system, setStreamingText);
 
       addMessage(convId, { role: 'assistant', content: await encryptText(fullText) });
       setStreamingText('');
     } catch (err: unknown) {
       let msg = err instanceof Error ? err.message : String(err);
       if (msg === 'Failed to fetch' || msg.includes('Failed to fetch')) {
-        if (config.provider === 'ollama') {
-          msg = `Impossible de contacter Ollama à l'adresse "${config.ollamaUrl}". Vérifiez qu'Ollama est en cours d'exécution sur votre machine locale, ou configurez le fournisseur Groq (clé API gratuite) dans les paramètres de l'IA.`;
-        } else {
-          msg = `Impossible de contacter l'API Groq. Vérifiez votre connexion internet et votre clé API dans les paramètres de l'IA.`;
-        }
+        msg = 'Impossible de contacter l\'API Groq. Vérifiez votre connexion internet.';
       }
       addMessage(convId, { role: 'assistant', content: await encryptText(`⚠️ Erreur : ${msg}`) });
       setStreamingText('');
-      openConfig();
     } finally {
       setLoading(false);
     }
   };
 
   const openConfig = () => {
-    setCfgProvider(config.provider);
-    setCfgOllamaUrl(config.ollamaUrl);
-    setCfgOllamaModel(config.ollamaModel);
-    setCfgGroqKey(config.groqKey);
-    setCfgGroqModel(config.groqModel);
+    setCfgKey(groqKey);
+    setCfgModel(groqModel);
     setShowConfig(true);
   };
 
   const saveConfig = () => {
-    const trimmedKey = cfgGroqKey.trim();
-    setConfig({ provider: cfgProvider, ollamaUrl: (cfgOllamaUrl ?? '').trim(), ollamaModel: (cfgOllamaModel ?? '').trim(), groqKey: trimmedKey, groqModel: (cfgGroqModel ?? '').trim() });
-    if (isAdmin && trimmedKey) {
-      useProjectStore.getState().setGroqKey(trimmedKey);
-    }
+    const key = cfgKey.trim();
+    const model = cfgModel.trim() || DEFAULT_MODEL;
+    setGroqKey(key);
+    setGroqModel(model);
     setShowConfig(false);
   };
 
@@ -339,7 +292,6 @@ export default function IAView() {
   const handleImportDataset = async (dataset: DataGouvDataset) => {
     setImportingId(dataset.id);
     try {
-      // Try to fetch first CSV resource
       const csvResource = dataset.resources.find(r =>
         r.format?.toLowerCase() === 'csv' || r.url?.endsWith('.csv')
       );
@@ -499,11 +451,22 @@ export default function IAView() {
                 </button>
               </div>
             )}
-            <button onClick={openConfig}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${isConfigured ? 'border-green-200 bg-green-50 text-green-700' : 'border-orange-200 bg-orange-50 text-orange-700'}`}>
-              <Settings2 className="w-3.5 h-3.5" />
-              {isConfigured ? (config.provider === 'ollama' ? `Ollama · ${config.ollamaModel}` : `Groq · ${config.groqModel}`) : 'Configurer'}
-            </button>
+            {/* Status pill — clickable only for admins */}
+            {isConfigured ? (
+              <button
+                onClick={isAdmin ? openConfig : undefined}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-green-200 bg-green-50 text-green-700 ${isAdmin ? 'hover:bg-green-100 transition-colors' : 'cursor-default'}`}
+              >
+                <Settings2 className="w-3.5 h-3.5" />
+                Groq · {groqModel}
+              </button>
+            ) : isAdmin ? (
+              <button onClick={openConfig}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors">
+                <Settings2 className="w-3.5 h-3.5" />
+                Configurer l'IA
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -520,12 +483,12 @@ export default function IAView() {
                     <p className="font-semibold text-gray-700 text-lg">Assistant du projet</p>
                     <p className="text-gray-500 text-sm mt-1 max-w-sm">Je réponds uniquement à partir de la base de connaissances du projet.</p>
                   </div>
-                  <div className="flex flex-col gap-2 items-center text-xs text-gray-400">
-                    {config.provider === 'ollama'
-                      ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium">Ollama local — gratuit &amp; privé</span>
-                      : <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium">Groq · {config.groqModel}</span>}
-                    {documents.length > 0 && <span className="bg-gray-100 px-3 py-1 rounded-full">{documents.length} document{documents.length > 1 ? 's' : ''} dans la base</span>}
-                  </div>
+                  {isConfigured && (
+                    <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium text-xs">
+                      Groq · {groqModel}
+                      {documents.length > 0 && ` · ${documents.length} document${documents.length > 1 ? 's' : ''}`}
+                    </span>
+                  )}
                 </div>
               ) : (
                 <>
@@ -555,23 +518,27 @@ export default function IAView() {
               )}
             </div>
             <div className="border-t border-gray-200 bg-white px-3 py-3 shrink-0">
-              {(!isConfigured || isOllamaOnWeb) && (
+              {!isConfigured && (
                 <div className="mb-2 p-2.5 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-700 flex items-center justify-between gap-2">
-                  <span>{isOllamaOnWeb ? '⚠️ Ollama ne fonctionne pas en ligne — configurez Groq (gratuit)' : '⚠️ IA non configurée'}</span>
-                  <button onClick={openConfig} className="underline font-medium whitespace-nowrap">Configurer</button>
+                  <span>⚠️ L'IA n'est pas encore configurée.</span>
+                  {isAdmin
+                    ? <button onClick={openConfig} className="underline font-medium whitespace-nowrap">Configurer</button>
+                    : <span className="font-medium">Contactez un administrateur.</span>
+                  }
                 </div>
               )}
-              {documents.length === 0 && (
+              {documents.length === 0 && isConfigured && (
                 <div className="mb-2 p-2.5 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-700">
-                  ⚠️ Base vide — {isAdmin ? <span>ajoutez des documents.</span> : "contactez un administrateur."}
+                  ⚠️ Base vide — {isAdmin ? <span>ajoutez des documents dans l'onglet "Base de connaissances".</span> : "contactez un administrateur."}
                 </div>
               )}
               <div className="flex gap-2 items-end">
                 <textarea value={input} onChange={e => setInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                  placeholder="Votre question…"
-                  rows={1} className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#00c875] max-h-32" style={{ minHeight: '44px' }} />
-                <button onClick={handleSend} disabled={!input.trim() || loading}
+                  placeholder={isConfigured ? "Votre question…" : "IA non configurée…"}
+                  disabled={!isConfigured}
+                  rows={1} className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#00c875] max-h-32 disabled:bg-gray-50 disabled:text-gray-400" style={{ minHeight: '44px' }} />
+                <button onClick={handleSend} disabled={!input.trim() || loading || !isConfigured}
                   className="h-11 w-11 flex items-center justify-center bg-[#00c875] hover:bg-[#00b368] disabled:opacity-40 text-white rounded-xl transition-colors shrink-0 min-w-[44px]">
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 </button>
@@ -740,100 +707,53 @@ export default function IAView() {
         )}
       </div>
 
-      {/* Config modal */}
-      {showConfig && (
+      {/* Config modal — admin only */}
+      {showConfig && isAdmin && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={() => setShowConfig(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
               <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-gray-900 text-lg">Configuration de l'IA</h2>
+                <div>
+                  <h2 className="font-semibold text-gray-900 text-lg">Configuration IA</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">Clé partagée avec tous les utilisateurs via Firebase</p>
+                </div>
                 <button onClick={() => setShowConfig(false)} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100"><X className="w-4 h-4" /></button>
               </div>
 
-              {/* Provider toggle */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Moteur IA</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => setCfgProvider('ollama')}
-                    className={`flex flex-col items-start gap-1 p-3 rounded-xl border-2 transition-all text-left ${cfgProvider === 'ollama' ? 'border-[#00c875] bg-[#00c875]/5' : 'border-gray-200 hover:border-gray-300'}`}>
-                    <span className="font-semibold text-sm text-gray-800">Ollama</span>
-                    <span className="text-xs text-green-600 font-medium">100% gratuit · 100% local</span>
-                    <span className="text-xs text-gray-500">Tourne sur votre ordinateur</span>
-                  </button>
-                  <button onClick={() => setCfgProvider('groq')}
-                    className={`flex flex-col items-start gap-1 p-3 rounded-xl border-2 transition-all text-left ${cfgProvider === 'groq' ? 'border-[#00c875] bg-[#00c875]/5' : 'border-gray-200 hover:border-gray-300'}`}>
-                    <span className="font-semibold text-sm text-gray-800">Groq Cloud</span>
-                    <span className="text-xs text-green-600 font-medium">Gratuit · Rapide · En ligne</span>
-                    <span className="text-xs text-gray-500">Clé gratuite sur console.groq.com</span>
-                  </button>
-                </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 space-y-1">
+                <p className="font-semibold">Groq Cloud — gratuit, sans téléchargement</p>
+                <p>1. Créez un compte gratuit sur <strong>console.groq.com</strong></p>
+                <p>2. Menu → <strong>API Keys</strong> → Create API key</p>
+                <p>3. Copiez la clé <code className="bg-blue-100 px-1 rounded">gsk_...</code> ci-dessous</p>
+                <p className="text-green-700 font-medium">✓ Entièrement gratuit — aucune carte bancaire requise</p>
               </div>
 
-              {cfgProvider === 'ollama' && (
-                <div className="space-y-3">
-                  <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-900 space-y-1">
-                    <p className="font-bold">⚠️ Ollama fonctionne uniquement en local</p>
-                    <p>Si l'application est hébergée en ligne (web), Ollama ne peut pas fonctionner — il tourne sur votre ordinateur, pas sur un serveur. Dans ce cas, utilisez <strong>Groq Cloud</strong> (gratuit).</p>
-                  </div>
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-800 space-y-1">
-                    <p className="font-semibold">Installation Ollama (une seule fois) :</p>
-                    <p>1. Téléchargez <strong>ollama.com</strong> et installez-le</p>
-                    <p>2. Ouvrez un terminal et tapez : <code className="bg-green-100 px-1 rounded">ollama pull llama3.2</code></p>
-                    <p>3. Ollama démarre automatiquement sur <code className="bg-green-100 px-1 rounded">localhost:11434</code></p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">URL Ollama</label>
-                    <input value={cfgOllamaUrl} onChange={e => setCfgOllamaUrl(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#00c875]" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Modèle</label>
-                    <input value={cfgOllamaModel} onChange={e => setCfgOllamaModel(e.target.value)} placeholder="llama3.2" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#00c875]" />
-                    <p className="text-xs text-gray-400 mt-1">Modèles recommandés (gratuits) : <code>llama3.2</code> · <code>mistral</code> · <code>phi3</code></p>
-                  </div>
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                  Clé API Groq
+                </label>
+                <input
+                  type="password"
+                  value={cfgKey}
+                  onChange={e => setCfgKey(e.target.value)}
+                  placeholder="gsk_..."
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#00c875]"
+                />
+                {cfgKey && (
+                  <button onClick={() => setCfgKey('')} className="text-xs text-red-500 hover:text-red-700 mt-1 underline">Effacer la clé</button>
+                )}
+              </div>
 
-              {cfgProvider === 'groq' && (
-                <div className="space-y-3">
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 space-y-1">
-                    <p className="font-semibold">Obtenir une clé Groq gratuite :</p>
-                    <p>1. Allez sur <strong>console.groq.com</strong> et créez un compte (gratuit)</p>
-                    <p>2. Menu → <strong>API Keys</strong> → Create API key</p>
-                    <p>3. Copiez la clé et collez-la ci-dessous</p>
-                    <p className="text-green-700 font-medium mt-1">✓ Entièrement gratuit — aucune carte bancaire requise</p>
-                  </div>
-                  <div>
-                    {projectGroqKey ? (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-800 flex items-center gap-2">
-                        <span className="text-green-600">✓</span>
-                        Clé API configurée par l'administrateur et synchronisée sur tous les appareils.
-                        {isAdmin && (
-                          <button onClick={() => { useProjectStore.getState().setGroqKey(''); }} className="ml-auto text-red-500 hover:text-red-700 underline">Retirer</button>
-                        )}
-                      </div>
-                    ) : (
-                      <>
-                        <label className="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
-                          Clé API Groq (gsk_…)
-                          {isAdmin && <span className="normal-case font-normal text-green-600 ml-1">— sera synchronisée sur tous les appareils</span>}
-                        </label>
-                        <input type="password" value={cfgGroqKey} onChange={e => setCfgGroqKey(e.target.value)} placeholder="gsk_..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#00c875]" />
-                        {!isAdmin && <p className="text-xs text-amber-600 mt-1">Seul un administrateur peut configurer la clé partagée. Contactez votre super admin.</p>}
-                      </>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Modèle</label>
-                    <select value={cfgGroqModel} onChange={e => setCfgGroqModel(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875]">
-                      <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (rapide)</option>
-                      <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (meilleur)</option>
-                      <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
-                      <option value="gemma2-9b-it">gemma2-9b-it</option>
-                    </select>
-                  </div>
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Modèle</label>
+                <select value={cfgModel} onChange={e => setCfgModel(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875]">
+                  <option value="llama-3.1-8b-instant">llama-3.1-8b-instant — rapide</option>
+                  <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile — meilleur</option>
+                  <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
+                  <option value="gemma2-9b-it">gemma2-9b-it</option>
+                </select>
+              </div>
 
               <div className="flex gap-2 justify-end pt-1">
                 <button onClick={() => setShowConfig(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">Annuler</button>

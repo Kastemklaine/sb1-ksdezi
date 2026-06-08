@@ -134,7 +134,8 @@ export interface Project {
   name: string;
   subtitle: string;
   fonctions: string[];
-  groqKey?: string; // stored once by superadmin, synced to all devices (free Groq API)
+  groqKey?: string;   // set once by superadmin, shared with all users via Firebase
+  groqModel?: string; // default: llama-3.1-8b-instant
   workstreams: Workstream[];
   tasks: Task[];
   governance: GovernanceInstance[];
