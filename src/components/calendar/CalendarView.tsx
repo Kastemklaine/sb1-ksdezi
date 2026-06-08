@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
-import { Calendar, Plus, X, ChevronLeft, ChevronRight, Download, Trash2, RefreshCw, CheckSquare, Info, Pencil, FolderOpen } from 'lucide-react';
+import { Calendar, Plus, X, ChevronLeft, ChevronRight, Download, Trash2, RefreshCw, CheckSquare, Info, Pencil, FolderOpen, Link, Loader2 } from 'lucide-react';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../../lib/firebase';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   isSameMonth, isSameDay, format, addMonths, subMonths, parseISO, isToday
@@ -105,6 +107,11 @@ export default function CalendarView({ setView }: Props) {
   const tasks = useProjectStore(s => (curProject(s)?.tasks ?? []).filter(t => t.startDate));
   const { createEvent, updateEvent, deleteEvent } = useProjectStore();
   const [showOutlookModal, setShowOutlookModal] = useState(false);
+  const [webcalUrl, setWebcalUrl] = useState<string>('');
+  const [publishingICS, setPublishingICS] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const publishDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentProjectId = useProjectStore(s => s.currentProjectId);
   const [taskMenu, setTaskMenu] = useState<{ task: Task; x: number; y: number } | null>(null);
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -146,6 +153,44 @@ export default function CalendarView({ setView }: Props) {
       }
     });
   }, [events, currentUser]);
+
+  // Publish ICS to Firebase Storage for webcal subscription (debounced)
+  useEffect(() => {
+    if (publishDebounce.current) clearTimeout(publishDebounce.current);
+    publishDebounce.current = setTimeout(async () => {
+      try {
+        const ics = generateFullICS(events, tasks, workstreams);
+        const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+        const fileRef = storageRef(storage, `calendars/${currentProjectId}.ics`);
+        await uploadBytes(fileRef, blob, { contentType: 'text/calendar', cacheControl: 'public, max-age=3600' });
+        const url = await getDownloadURL(fileRef);
+        setWebcalUrl(url.replace(/^https:\/\//, 'webcal://'));
+      } catch {
+        // Storage rules may not allow yet — silently fail
+      }
+    }, 3000);
+    return () => { if (publishDebounce.current) clearTimeout(publishDebounce.current); };
+  }, [events, tasks, workstreams, currentProjectId]);
+
+  const handlePublishAndCopy = async () => {
+    setPublishingICS(true);
+    try {
+      const ics = generateFullICS(events, tasks, workstreams);
+      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      const fileRef = storageRef(storage, `calendars/${currentProjectId}.ics`);
+      await uploadBytes(fileRef, blob, { contentType: 'text/calendar', cacheControl: 'public, max-age=3600' });
+      const url = await getDownloadURL(fileRef);
+      const wc = url.replace(/^https:\/\//, 'webcal://');
+      setWebcalUrl(wc);
+      await navigator.clipboard.writeText(wc);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPublishingICS(false);
+    }
+  };
 
   const openNewEvent = (day?: Date) => {
     const d = day ?? new Date();
@@ -537,42 +582,76 @@ export default function CalendarView({ setView }: Props) {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
-                <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-800">Le fichier ICS contient tous les événements <strong>et toutes les tâches avec dates</strong>. Outlook l'importe en quelques secondes.</p>
+              {/* Subscription — recommended */}
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-green-600" />
+                  <h4 className="font-semibold text-green-800">Abonnement automatique (recommandé)</h4>
+                </div>
+                <p className="text-sm text-green-700">
+                  Outlook se synchronise automatiquement — plus besoin de télécharger à chaque fois.
+                </p>
+
+                {webcalUrl ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-green-700 font-medium">Lien webcal (copié automatiquement) :</p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 text-xs bg-white border border-green-200 rounded-lg px-2 py-1.5 truncate text-gray-700">{webcalUrl}</code>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(webcalUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                        className="shrink-0 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors min-h-[36px]"
+                      >
+                        {copied ? 'Copié !' : 'Copier'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handlePublishAndCopy}
+                    disabled={publishingICS}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors min-h-[44px]"
+                  >
+                    {publishingICS ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
+                    {publishingICS ? 'Publication...' : 'Générer le lien d\'abonnement'}
+                  </button>
+                )}
+
+                {webcalUrl && (
+                  <div>
+                    <p className="text-xs font-semibold text-green-800 mb-1.5">Étapes Outlook (bureau) :</p>
+                    <ol className="space-y-1 text-xs text-green-700">
+                      <li className="flex gap-2"><span className="font-bold shrink-0">1.</span>Copiez le lien ci-dessus</li>
+                      <li className="flex gap-2"><span className="font-bold shrink-0">2.</span>Dans Outlook : <strong>Ajouter un calendrier → À partir d'Internet</strong></li>
+                      <li className="flex gap-2"><span className="font-bold shrink-0">3.</span>Collez l'URL → <strong>OK</strong></li>
+                      <li className="flex gap-2"><span className="font-bold shrink-0">4.</span>Outlook rafraîchit automatiquement le calendrier (toutes les heures)</li>
+                    </ol>
+                    <p className="text-xs font-semibold text-green-800 mt-2 mb-1.5">Outlook.com / Microsoft 365 :</p>
+                    <ol className="space-y-1 text-xs text-green-700">
+                      <li className="flex gap-2"><span className="font-bold shrink-0">1.</span>Calendrier → <strong>Ajouter un calendrier → S'abonner depuis le web</strong></li>
+                      <li className="flex gap-2"><span className="font-bold shrink-0">2.</span>Collez l'URL → <strong>Importer</strong></li>
+                    </ol>
+                  </div>
+                )}
               </div>
 
-              <div>
-                <h4 className="font-semibold text-gray-800 mb-3">Importer dans Outlook (bureau)</h4>
-                <ol className="space-y-2 text-sm text-gray-700">
-                  <li className="flex gap-2"><span className="font-bold text-green-600 shrink-0">1.</span>Cliquez sur <strong>"Télécharger le fichier ICS"</strong> ci-dessous</li>
-                  <li className="flex gap-2"><span className="font-bold text-green-600 shrink-0">2.</span>Dans Outlook : <strong>Fichier → Ouvrir et exporter → Importer/Exporter</strong></li>
-                  <li className="flex gap-2"><span className="font-bold text-green-600 shrink-0">3.</span>Choisir <strong>"Importer un fichier iCalendar (.ics)"</strong></li>
-                  <li className="flex gap-2"><span className="font-bold text-green-600 shrink-0">4.</span>Sélectionnez le fichier téléchargé → <strong>Importer</strong></li>
-                </ol>
+              {/* Manual download — fallback */}
+              <div className="border border-gray-200 rounded-xl p-4 space-y-2">
+                <h4 className="font-semibold text-gray-700 text-sm">Téléchargement manuel (ponctuel)</h4>
+                <p className="text-xs text-gray-500">Import unique — à refaire à chaque mise à jour.</p>
+                <button onClick={() => { handleExportFullICS(); }}
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm font-medium rounded-lg transition-colors min-h-[44px]">
+                  <Download className="w-4 h-4" />
+                  Télécharger le fichier ICS
+                </button>
               </div>
 
-              <div>
-                <h4 className="font-semibold text-gray-800 mb-3">Importer dans Outlook (web / outlook.com)</h4>
-                <ol className="space-y-2 text-sm text-gray-700">
-                  <li className="flex gap-2"><span className="font-bold text-blue-600 shrink-0">1.</span>Téléchargez le fichier ICS</li>
-                  <li className="flex gap-2"><span className="font-bold text-blue-600 shrink-0">2.</span>Allez sur <strong>outlook.com</strong> → Calendrier</li>
-                  <li className="flex gap-2"><span className="font-bold text-blue-600 shrink-0">3.</span>Cliquez sur <strong>"Ajouter un calendrier" → "Télécharger un calendrier"</strong></li>
-                  <li className="flex gap-2"><span className="font-bold text-blue-600 shrink-0">4.</span>Sélectionnez le fichier .ics</li>
-                </ol>
-              </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-                <strong>Mise à jour :</strong> pour synchroniser les nouvelles tâches et événements, re-téléchargez et re-importez le fichier ICS. Les événements existants seront mis à jour automatiquement (même UID).
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex gap-2">
+                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-blue-700">Le calendrier contient tous les événements <strong>et toutes les tâches avec dates</strong>. Il est mis à jour automatiquement dès qu'un événement ou une tâche est modifié.</p>
               </div>
             </div>
             <div className="flex justify-end gap-3 px-4 sm:px-6 py-4 border-t border-gray-100">
               <button onClick={() => setShowOutlookModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors min-h-[44px]">Fermer</button>
-              <button onClick={() => { handleExportFullICS(); setShowOutlookModal(false); }}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors min-h-[44px]">
-                <Download className="w-4 h-4" />
-                Télécharger le fichier ICS
-              </button>
             </div>
           </div>
         </div>
