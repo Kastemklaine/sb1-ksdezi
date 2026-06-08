@@ -35,7 +35,7 @@ RÈGLES STRICTES :
 BASE DE CONNAISSANCES :
 ${docs.length === 0
     ? '⚠️ Aucun document dans la base de connaissances. Tu ne peux répondre à aucune question factuelle pour l\'instant.'
-    : docs.map(d => `--- [${d.title}] ---\n${d.content}`).join('\n\n')}`;
+    : docs.map(d => `--- [${d.title}] ---\n${d.content.slice(0, 6000)}`).join('\n\n')}`;
 
 async function callGroq(
   apiKey: string,
@@ -239,7 +239,8 @@ export default function IAView() {
 
     try {
       const history: { role: string; content: string }[] = [];
-      for (const msg of (conv?.messages ?? [])) {
+      const recentMessages = (conv?.messages ?? []).slice(-20); // keep last 20 messages to stay within context limit
+      for (const msg of recentMessages) {
         try { history.push({ role: msg.role, content: await decryptText(msg.content) }); } catch { /* skip */ }
       }
       history.push({ role: 'user', content: text });
