@@ -159,14 +159,14 @@ export default function WorkstreamDetail({ workstreamId, setView }: Props) {
             <span className="text-xs font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{wsTasks.length}</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             {viewMode === 'table' && (
-              <div className="flex gap-1 flex-wrap">
+              <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none">
                 {(['all', 'todo', 'inprogress', 'done', 'blocked'] as const).map(f => (
                   <button
                     key={f}
                     onClick={() => setFilter(f)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filter === f ? 'bg-[#00c875] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${filter === f ? 'bg-[#00c875] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                   >
                     {f === 'all' ? 'Toutes' : STATUS_CONFIG[f].label}
                   </button>
@@ -212,10 +212,11 @@ export default function WorkstreamDetail({ workstreamId, setView }: Props) {
               </div>
             ) : (
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                <div className="grid grid-cols-12 gap-0 bg-gray-50 border-b border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                {/* Desktop header */}
+                <div className="hidden md:grid grid-cols-12 gap-0 bg-gray-50 border-b border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                   <div className="col-span-5">Tâche</div>
                   <div className="col-span-2">Statut</div>
-                  <div className="col-span-2 hidden md:block">Responsable(s)</div>
+                  <div className="col-span-2">Responsable(s)</div>
                   <div className="col-span-2 hidden lg:block">Dates</div>
                   <div className="col-span-1 text-right hidden lg:block">Budget</div>
                 </div>
@@ -231,60 +232,71 @@ export default function WorkstreamDetail({ workstreamId, setView }: Props) {
                       <button
                         key={task.id}
                         onClick={(e) => { e.stopPropagation(); setTaskMenu({ task, x: e.clientX, y: e.clientY }); }}
-                        className={`w-full grid grid-cols-12 gap-0 px-4 py-3 text-left transition-colors hover:bg-[#00c875]/5 items-center ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}
+                        className={`w-full text-left transition-colors hover:bg-[#00c875]/5 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}
                       >
-                        <div className="col-span-5 flex items-center gap-2 min-w-0 pr-2">
-                          <div className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`} />
-                          <div className="min-w-0">
-                            <p className="font-medium text-gray-900 truncate text-sm">{task.title}</p>
-                            {blocked && task.status !== 'done' && (
-                              <span className="flex items-center gap-1 text-xs text-orange-600 mt-0.5">
-                                <AlertTriangle className="w-3 h-3" />
-                                Dépendance
-                              </span>
+                        {/* Mobile card layout */}
+                        <div className="md:hidden px-4 py-3 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className={`w-2 h-2 rounded-full shrink-0 mt-1 ${sc.dot}`} />
+                              <p className="font-medium text-gray-900 text-sm leading-snug">{task.title}</p>
+                            </div>
+                            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${sc.bg} ${sc.color}`}>
+                              <StatusIcon className="w-3 h-3" />
+                              {sc.label}
+                            </span>
+                          </div>
+                          {blocked && task.status !== 'done' && (
+                            <span className="flex items-center gap-1 text-xs text-orange-600">
+                              <AlertTriangle className="w-3 h-3" />Dépendance
+                            </span>
+                          )}
+                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                            {assignees.length > 0 && (
+                              <div className="flex items-center -space-x-1">
+                                {assignees.slice(0, 3).map(u => (
+                                  <div key={u.id} title={u.name} className="w-5 h-5 rounded-full bg-[#00c875] border border-white flex items-center justify-center text-white text-xs font-bold">{u.name.charAt(0)}</div>
+                                ))}
+                              </div>
                             )}
+                            {(task.startDate || task.endDate) && (
+                              <span>{task.startDate ? formatDate(task.startDate) : ''}{task.startDate && task.endDate ? ' → ' : ''}{task.endDate ? formatDate(task.endDate) : ''}</span>
+                            )}
+                            {task.budget > 0 && <span className="font-medium text-gray-700">{task.budget.toLocaleString('fr-FR')} €</span>}
                           </div>
                         </div>
 
-                        <div className="col-span-2">
-                          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${sc.bg} ${sc.color}`}>
-                            <StatusIcon className="w-3 h-3" />
-                            {sc.label}
-                          </span>
-                        </div>
-
-                        <div className="col-span-2 hidden md:flex items-center -space-x-1">
-                          {assignees.slice(0, 3).map(u => (
-                            <div
-                              key={u.id}
-                              title={u.name}
-                              className="w-7 h-7 rounded-full bg-[#00c875] border-2 border-white flex items-center justify-center text-white text-xs font-bold shrink-0"
-                            >
-                              {u.name.charAt(0)}
+                        {/* Desktop row layout */}
+                        <div className="hidden md:grid grid-cols-12 gap-0 px-4 py-3 items-center">
+                          <div className="col-span-5 flex items-center gap-2 min-w-0 pr-2">
+                            <div className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`} />
+                            <div className="min-w-0">
+                              <p className="font-medium text-gray-900 truncate text-sm">{task.title}</p>
+                              {blocked && task.status !== 'done' && (
+                                <span className="flex items-center gap-1 text-xs text-orange-600 mt-0.5">
+                                  <AlertTriangle className="w-3 h-3" />Dépendance
+                                </span>
+                              )}
                             </div>
-                          ))}
-                          {assignees.length > 3 && (
-                            <div className="w-7 h-7 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-gray-600 text-xs font-bold">
-                              +{assignees.length - 3}
-                            </div>
-                          )}
-                          {assignees.length === 0 && <span className="text-xs text-gray-300">—</span>}
-                        </div>
-
-                        <div className="col-span-2 hidden lg:block text-xs text-gray-500">
-                          {task.startDate || task.endDate ? (
-                            <span>
-                              {task.startDate ? formatDate(task.startDate) : ''}
-                              {task.startDate && task.endDate ? ' → ' : ''}
-                              {task.endDate ? formatDate(task.endDate) : ''}
+                          </div>
+                          <div className="col-span-2">
+                            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${sc.bg} ${sc.color}`}>
+                              <StatusIcon className="w-3 h-3" />{sc.label}
                             </span>
-                          ) : (
-                            <span className="text-gray-300">—</span>
-                          )}
-                        </div>
-
-                        <div className="col-span-1 hidden lg:block text-right text-xs font-medium text-gray-600">
-                          {task.budget > 0 ? `${task.budget.toLocaleString('fr-FR')} €` : <span className="text-gray-300">—</span>}
+                          </div>
+                          <div className="col-span-2 flex items-center -space-x-1">
+                            {assignees.slice(0, 3).map(u => (
+                              <div key={u.id} title={u.name} className="w-7 h-7 rounded-full bg-[#00c875] border-2 border-white flex items-center justify-center text-white text-xs font-bold shrink-0">{u.name.charAt(0)}</div>
+                            ))}
+                            {assignees.length > 3 && <div className="w-7 h-7 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-gray-600 text-xs font-bold">+{assignees.length - 3}</div>}
+                            {assignees.length === 0 && <span className="text-xs text-gray-300">—</span>}
+                          </div>
+                          <div className="col-span-2 hidden lg:block text-xs text-gray-500">
+                            {task.startDate || task.endDate ? <span>{task.startDate ? formatDate(task.startDate) : ''}{task.startDate && task.endDate ? ' → ' : ''}{task.endDate ? formatDate(task.endDate) : ''}</span> : <span className="text-gray-300">—</span>}
+                          </div>
+                          <div className="col-span-1 hidden lg:block text-right text-xs font-medium text-gray-600">
+                            {task.budget > 0 ? `${task.budget.toLocaleString('fr-FR')} €` : <span className="text-gray-300">—</span>}
+                          </div>
                         </div>
                       </button>
                     );

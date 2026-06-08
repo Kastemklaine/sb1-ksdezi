@@ -89,7 +89,7 @@ export default function Dashboard({ setView }: Props) {
               style={{ width: `${progressPct}%`, backgroundColor: '#00c875' }}
             />
           </div>
-          <div className="flex items-center gap-6 mt-3 text-xs text-gray-500">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 mt-3 text-xs text-gray-500">
             <span><span className="font-semibold text-gray-700">{doneTasks}</span> terminées</span>
             <span><span className="font-semibold text-gray-700">{inProgressTasks}</span> en cours</span>
             <span><span className="font-semibold text-gray-700">{blockedTasks}</span> bloquées</span>
