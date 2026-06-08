@@ -17,8 +17,14 @@ export async function fetchProject(projectId: string): Promise<Project | null> {
   return snap.exists() ? (snap.data() as Project) : null;
 }
 
-export function watchProject(projectId: string, onChange: (p: Project) => void): Unsubscribe {
-  return onSnapshot(doc(db, 'projects', projectId), (snap) => {
-    if (snap.exists()) onChange(snap.data() as Project);
-  });
+export function watchProject(
+  projectId: string,
+  onChange: (p: Project) => void,
+  onError?: () => void
+): Unsubscribe {
+  return onSnapshot(
+    doc(db, 'projects', projectId),
+    (snap) => { if (snap.exists()) onChange(snap.data() as Project); },
+    () => { onError?.(); }
+  );
 }
