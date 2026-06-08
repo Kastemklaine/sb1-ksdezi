@@ -81,6 +81,7 @@ interface ProjectState {
   // Fonctions (function/title badges)
   addFonction: (label: string) => void;
   removeFonction: (label: string) => void;
+  setAnthropicKey: (key: string) => void;
   // Sync: replace a project with remote data
   syncFromRemote: (project: Project) => void;
 }
@@ -327,6 +328,10 @@ export const useProjectStore = create<ProjectState>()(
 
       removeFonction: (label) => {
         updateCur(set, p => ({ fonctions: (p.fonctions ?? DEFAULT_FONCTIONS).filter(f => f !== label) }));
+      },
+
+      setAnthropicKey: (key) => {
+        updateCur(set, () => ({ anthropicKey: key }));
       },
 
       syncFromRemote: (project) => {

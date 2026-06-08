@@ -133,7 +133,8 @@ export interface Project {
   id: string;
   name: string;
   subtitle: string;
-  fonctions: string[]; // custom function/title badges
+  fonctions: string[];
+  anthropicKey?: string; // stored once by superadmin, synced to all devices
   workstreams: Workstream[];
   tasks: Task[];
   governance: GovernanceInstance[];

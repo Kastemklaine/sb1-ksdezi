@@ -107,9 +107,11 @@ export default function CalendarView({ setView }: Props) {
   const tasks = useProjectStore(s => (curProject(s)?.tasks ?? []).filter(t => t.startDate));
   const { createEvent, updateEvent, deleteEvent } = useProjectStore();
   const [showOutlookModal, setShowOutlookModal] = useState(false);
+  const [httpsUrl, setHttpsUrl] = useState<string>('');
   const [webcalUrl, setWebcalUrl] = useState<string>('');
   const [publishingICS, setPublishingICS] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedHttps, setCopiedHttps] = useState(false);
   const publishDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentProjectId = useProjectStore(s => s.currentProjectId);
   const [taskMenu, setTaskMenu] = useState<{ task: Task; x: number; y: number } | null>(null);
@@ -164,6 +166,7 @@ export default function CalendarView({ setView }: Props) {
         const fileRef = storageRef(storage, `calendars/${currentProjectId}.ics`);
         await uploadBytes(fileRef, blob, { contentType: 'text/calendar', cacheControl: 'public, max-age=3600' });
         const url = await getDownloadURL(fileRef);
+        setHttpsUrl(url);
         setWebcalUrl(url.replace(/^https:\/\//, 'webcal://'));
       } catch {
         // Storage rules may not allow yet — silently fail
@@ -180,9 +183,10 @@ export default function CalendarView({ setView }: Props) {
       const fileRef = storageRef(storage, `calendars/${currentProjectId}.ics`);
       await uploadBytes(fileRef, blob, { contentType: 'text/calendar', cacheControl: 'public, max-age=3600' });
       const url = await getDownloadURL(fileRef);
+      setHttpsUrl(url);
       const wc = url.replace(/^https:\/\//, 'webcal://');
       setWebcalUrl(wc);
-      await navigator.clipboard.writeText(wc);
+      await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
     } catch (e) {
@@ -592,44 +596,54 @@ export default function CalendarView({ setView }: Props) {
                   Outlook se synchronise automatiquement — plus besoin de télécharger à chaque fois.
                 </p>
 
-                {webcalUrl ? (
-                  <div className="space-y-2">
-                    <p className="text-xs text-green-700 font-medium">Lien webcal (copié automatiquement) :</p>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 text-xs bg-white border border-green-200 rounded-lg px-2 py-1.5 truncate text-gray-700">{webcalUrl}</code>
-                      <button
-                        onClick={() => { navigator.clipboard.writeText(webcalUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-                        className="shrink-0 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors min-h-[36px]"
-                      >
-                        {copied ? 'Copié !' : 'Copier'}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
+                {!httpsUrl ? (
                   <button
                     onClick={handlePublishAndCopy}
                     disabled={publishingICS}
                     className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors min-h-[44px]"
                   >
                     {publishingICS ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
-                    {publishingICS ? 'Publication...' : 'Générer le lien d\'abonnement'}
+                    {publishingICS ? 'Publication...' : 'Générer les liens d\'abonnement'}
                   </button>
-                )}
+                ) : (
+                  <div className="space-y-3">
+                    {/* URL HTTPS for Outlook Online / OWA */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-bold text-green-800">🖥️ Outlook.com / Microsoft 365 (web) — URL HTTPS :</p>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 text-xs bg-white border border-green-200 rounded-lg px-2 py-1.5 truncate text-gray-600 min-w-0">{httpsUrl}</code>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(httpsUrl); setCopiedHttps(true); setTimeout(() => setCopiedHttps(false), 2000); }}
+                          className="shrink-0 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors min-h-[36px]"
+                        >
+                          {copiedHttps ? '✓ Copié' : 'Copier'}
+                        </button>
+                      </div>
+                      <ol className="space-y-0.5 text-xs text-green-700 pl-1">
+                        <li>1. Copiez l'URL HTTPS ci-dessus</li>
+                        <li>2. Outlook Calendar → <strong>Ajouter un calendrier → S'abonner depuis le web</strong></li>
+                        <li>3. Collez l'URL → <strong>Importer</strong></li>
+                      </ol>
+                    </div>
 
-                {webcalUrl && (
-                  <div>
-                    <p className="text-xs font-semibold text-green-800 mb-1.5">Étapes Outlook (bureau) :</p>
-                    <ol className="space-y-1 text-xs text-green-700">
-                      <li className="flex gap-2"><span className="font-bold shrink-0">1.</span>Copiez le lien ci-dessus</li>
-                      <li className="flex gap-2"><span className="font-bold shrink-0">2.</span>Dans Outlook : <strong>Ajouter un calendrier → À partir d'Internet</strong></li>
-                      <li className="flex gap-2"><span className="font-bold shrink-0">3.</span>Collez l'URL → <strong>OK</strong></li>
-                      <li className="flex gap-2"><span className="font-bold shrink-0">4.</span>Outlook rafraîchit automatiquement le calendrier (toutes les heures)</li>
-                    </ol>
-                    <p className="text-xs font-semibold text-green-800 mt-2 mb-1.5">Outlook.com / Microsoft 365 :</p>
-                    <ol className="space-y-1 text-xs text-green-700">
-                      <li className="flex gap-2"><span className="font-bold shrink-0">1.</span>Calendrier → <strong>Ajouter un calendrier → S'abonner depuis le web</strong></li>
-                      <li className="flex gap-2"><span className="font-bold shrink-0">2.</span>Collez l'URL → <strong>Importer</strong></li>
-                    </ol>
+                    {/* webcal for Outlook Desktop */}
+                    <div className="space-y-1.5 border-t border-green-200 pt-3">
+                      <p className="text-xs font-bold text-green-800">💻 Outlook Bureau (Windows/Mac) — webcal :</p>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 text-xs bg-white border border-green-200 rounded-lg px-2 py-1.5 truncate text-gray-600 min-w-0">{webcalUrl}</code>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(webcalUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                          className="shrink-0 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors min-h-[36px]"
+                        >
+                          {copied ? '✓ Copié' : 'Copier'}
+                        </button>
+                      </div>
+                      <ol className="space-y-0.5 text-xs text-green-700 pl-1">
+                        <li>1. Copiez l'URL webcal ci-dessus</li>
+                        <li>2. Outlook → <strong>Ajouter un calendrier → À partir d'Internet</strong></li>
+                        <li>3. Collez l'URL → <strong>OK</strong></li>
+                      </ol>
+                    </div>
                   </div>
                 )}
               </div>

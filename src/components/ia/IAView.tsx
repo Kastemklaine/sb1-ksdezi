@@ -179,7 +179,10 @@ async function searchDataGouv(query: string): Promise<DataGouvDataset[]> {
 export default function IAView() {
   const { config, setConfig, conversations, createConversation, addMessage, deleteConversation, renameConversation } = useIAStore();
   const documents = useProjectStore(s => curProject(s)?.iaDocuments ?? []);
+  const projectAnthropicKey = useProjectStore(s => curProject(s)?.anthropicKey ?? '');
   const currentProjectId = useProjectStore(s => s.currentProjectId);
+  // Effective key: project-synced key takes priority over local config
+  const effectiveAnthropicKey = projectAnthropicKey || config.anthropicKey;
   const addDocument = useProjectStore(s => s.addIADocument);
   const updateDocument = useProjectStore(s => s.updateIADocument);
   const deleteDocument = useProjectStore(s => s.deleteIADocument);
@@ -239,7 +242,7 @@ export default function IAView() {
   }, [decrypted, streamingText]);
 
   const isOllamaOnWeb = config.provider === 'ollama' && typeof window !== 'undefined' && !window.location.hostname.includes('localhost');
-  const isConfigured = (config.provider === 'anthropic' && !!config.anthropicKey) || (config.provider === 'ollama' && !isOllamaOnWeb);
+  const isConfigured = !!effectiveAnthropicKey || (config.provider === 'ollama' && !isOllamaOnWeb);
 
   const ensureConv = () => {
     if (activeConvId && conversations.find(c => c.id === activeConvId)) return activeConvId;
@@ -274,11 +277,11 @@ export default function IAView() {
       const system = SYSTEM_PROMPT(documents);
       let fullText = '';
 
-      if (config.provider === 'ollama') {
+      if (config.provider === 'ollama' && !isOllamaOnWeb && !effectiveAnthropicKey) {
         const ollamaMessages = [{ role: 'system', content: system }, ...history];
         fullText = await callOllama(config.ollamaUrl, config.ollamaModel, ollamaMessages, setStreamingText);
       } else {
-        fullText = await callAnthropic(config.anthropicKey, history, system, setStreamingText);
+        fullText = await callAnthropic(effectiveAnthropicKey, history, system, setStreamingText);
       }
 
       addMessage(convId, { role: 'assistant', content: await encryptText(fullText) });
@@ -309,7 +312,11 @@ export default function IAView() {
   };
 
   const saveConfig = () => {
-    setConfig({ provider: cfgProvider, ollamaUrl: cfgOllamaUrl.trim(), ollamaModel: cfgOllamaModel.trim(), anthropicKey: cfgAnthropicKey.trim() });
+    const trimmedKey = cfgAnthropicKey.trim();
+    setConfig({ provider: cfgProvider, ollamaUrl: cfgOllamaUrl.trim(), ollamaModel: cfgOllamaModel.trim(), anthropicKey: trimmedKey });
+    if (isAdmin && trimmedKey) {
+      useProjectStore.getState().setAnthropicKey(trimmedKey);
+    }
     setShowConfig(false);
   };
 
@@ -791,8 +798,24 @@ export default function IAView() {
                     Clé API disponible sur <strong>console.anthropic.com</strong> → API Keys. Facturé à l'usage (~0,003€/message).
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Clé API (sk-ant-…)</label>
-                    <input type="password" value={cfgAnthropicKey} onChange={e => setCfgAnthropicKey(e.target.value)} placeholder="sk-ant-api03-..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#00c875]" />
+                    {projectAnthropicKey ? (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-800 flex items-center gap-2">
+                        <span className="text-green-600">✓</span>
+                        Clé API configurée par l'administrateur et synchronisée sur tous les appareils.
+                        {isAdmin && (
+                          <button onClick={() => { useProjectStore.getState().setAnthropicKey(''); }} className="ml-auto text-red-500 hover:text-red-700 underline">Retirer</button>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <label className="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                          Clé API (sk-ant-…)
+                          {isAdmin && <span className="normal-case font-normal text-green-600 ml-1">— sera synchronisée sur tous les appareils</span>}
+                        </label>
+                        <input type="password" value={cfgAnthropicKey} onChange={e => setCfgAnthropicKey(e.target.value)} placeholder="sk-ant-api03-..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#00c875]" />
+                        {!isAdmin && <p className="text-xs text-amber-600 mt-1">Seul un administrateur peut configurer la clé partagée. Contactez votre super admin.</p>}
+                      </>
+                    )}
                   </div>
                 </div>
               )}

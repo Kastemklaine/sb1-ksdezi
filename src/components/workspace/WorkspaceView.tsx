@@ -111,6 +111,25 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
     setEditingDoc(null);
   };
 
+  // Separate save for diagram: content comes from DiagramEditor callback (not from state)
+  const handleSaveDiagramDoc = (content: string) => {
+    if (!editingDoc || !currentUser) return;
+    if (editingDoc.id === '') {
+      createDocument({
+        workstreamId,
+        subSectionId: editingDoc.subSectionId,
+        title: docTitle || 'Nouveau schéma',
+        content,
+        space: editingDoc.space,
+        type: 'diagram',
+        authorId: currentUser.id,
+      });
+    } else {
+      updateDocument(editingDoc.id, { title: docTitle, content });
+    }
+    setEditingDoc(null);
+  };
+
   const handleSendMessage = () => {
     if (!msgInput.trim() || !currentUser) return;
     addDiscussionMessage(workstreamId, currentUser.id, msgInput.trim());
@@ -238,7 +257,7 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
             <div className="flex-1 min-h-0">
               <DiagramEditor
                 initialData={(() => { try { return JSON.parse(docContent) as DiagramData; } catch { return { nodes: [], edges: [] }; } })()}
-                onSave={(data) => { setDocContent(JSON.stringify(data)); handleSaveDoc(); }}
+                onSave={(data) => { const c = JSON.stringify(data); setDocContent(c); handleSaveDiagramDoc(c); }}
                 onClose={() => setEditingDoc(null)}
               />
             </div>
