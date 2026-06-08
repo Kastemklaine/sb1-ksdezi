@@ -317,7 +317,7 @@ export default function IAView() {
     const trimmedKey = cfgGroqKey.trim();
     setConfig({ provider: cfgProvider, ollamaUrl: cfgOllamaUrl.trim(), ollamaModel: cfgOllamaModel.trim(), groqKey: trimmedKey, groqModel: cfgGroqModel.trim() });
     if (isAdmin && trimmedKey) {
-      useProjectStore.getState().setAnthropicKey(trimmedKey);
+      useProjectStore.getState().setGroqKey(trimmedKey);
     }
     setShowConfig(false);
   };
@@ -774,7 +774,7 @@ export default function IAView() {
                 <div className="space-y-3">
                   <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-900 space-y-1">
                     <p className="font-bold">⚠️ Ollama fonctionne uniquement en local</p>
-                    <p>Si l'application est hébergée en ligne (web), Ollama ne peut pas fonctionner — il tourne sur votre ordinateur, pas sur un serveur. Dans ce cas, utilisez <strong>Anthropic Claude</strong>.</p>
+                    <p>Si l'application est hébergée en ligne (web), Ollama ne peut pas fonctionner — il tourne sur votre ordinateur, pas sur un serveur. Dans ce cas, utilisez <strong>Groq Cloud</strong> (gratuit).</p>
                   </div>
                   <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-800 space-y-1">
                     <p className="font-semibold">Installation Ollama (une seule fois) :</p>
@@ -809,7 +809,7 @@ export default function IAView() {
                         <span className="text-green-600">✓</span>
                         Clé API configurée par l'administrateur et synchronisée sur tous les appareils.
                         {isAdmin && (
-                          <button onClick={() => { useProjectStore.getState().setAnthropicKey(''); }} className="ml-auto text-red-500 hover:text-red-700 underline">Retirer</button>
+                          <button onClick={() => { useProjectStore.getState().setGroqKey(''); }} className="ml-auto text-red-500 hover:text-red-700 underline">Retirer</button>
                         )}
                       </div>
                     ) : (

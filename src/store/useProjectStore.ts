@@ -81,7 +81,7 @@ interface ProjectState {
   // Fonctions (function/title badges)
   addFonction: (label: string) => void;
   removeFonction: (label: string) => void;
-  setAnthropicKey: (key: string) => void;
+  setGroqKey: (key: string) => void;
   // Sync: replace a project with remote data
   syncFromRemote: (project: Project) => void;
 }
@@ -330,7 +330,7 @@ export const useProjectStore = create<ProjectState>()(
         updateCur(set, p => ({ fonctions: (p.fonctions ?? DEFAULT_FONCTIONS).filter(f => f !== label) }));
       },
 
-      setAnthropicKey: (key) => {
+      setGroqKey: (key) => {
         updateCur(set, () => ({ groqKey: key }));
       },
 
