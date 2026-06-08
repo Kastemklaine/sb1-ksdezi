@@ -4,6 +4,8 @@ import {
   Pencil, Check, X, Lock, FileText, ChevronDown, Loader2, Settings2, Upload, Image as ImageIcon
 } from 'lucide-react';
 import * as pdfjs from 'pdfjs-dist';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../../lib/firebase';
 import { useIAStore, type IAProvider } from '../../store/useIAStore';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -111,6 +113,7 @@ async function callAnthropic(
 export default function IAView() {
   const { config, setConfig, conversations, createConversation, addMessage, deleteConversation, renameConversation } = useIAStore();
   const documents = useProjectStore(s => curProject(s)?.iaDocuments ?? []);
+  const currentProjectId = useProjectStore(s => s.currentProjectId);
   const addDocument = useProjectStore(s => s.addIADocument);
   const updateDocument = useProjectStore(s => s.updateIADocument);
   const deleteDocument = useProjectStore(s => s.deleteIADocument);
@@ -255,15 +258,16 @@ export default function IAView() {
         setNewImageData(undefined);
         setShowNewDoc(true);
       } else if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          setNewTitle(file.name.replace(/\.[^.]+$/, ''));
-          setNewContent('');
-          setNewImageData(dataUrl);
-          setShowNewDoc(true);
-        };
-        reader.readAsDataURL(file);
+        // Upload to Firebase Storage to avoid localStorage quota issues
+        const ext = file.name.split('.').pop() ?? 'png';
+        const path = `ia-images/${currentProjectId}/${Date.now()}.${ext}`;
+        const fileRef = storageRef(storage, path);
+        await uploadBytes(fileRef, file, { contentType: file.type });
+        const url = await getDownloadURL(fileRef);
+        setNewTitle(file.name.replace(/\.[^.]+$/, ''));
+        setNewContent('');
+        setNewImageData(url);
+        setShowNewDoc(true);
       }
     } catch (err) {
       console.error('Upload error', err);

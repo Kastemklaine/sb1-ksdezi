@@ -3,8 +3,13 @@ import type { Unsubscribe } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Project } from '../types';
 
+// Firestore rejects undefined values — strip them via JSON round-trip
+function stripUndefined<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
+
 export async function pushProject(project: Project): Promise<void> {
-  await setDoc(doc(db, 'projects', project.id), project);
+  await setDoc(doc(db, 'projects', project.id), stripUndefined(project));
 }
 
 export async function fetchProject(projectId: string): Promise<Project | null> {
