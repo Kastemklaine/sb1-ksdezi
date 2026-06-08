@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Bot, Send, Plus, Trash2, BookOpen, MessageSquare,
-  Pencil, Check, X, Lock, FileText, ChevronDown, Loader2, Settings2
+  Pencil, Check, X, Lock, FileText, ChevronDown, Loader2, Settings2, Upload, Image as ImageIcon
 } from 'lucide-react';
+import * as pdfjs from 'pdfjs-dist';
 import { useIAStore, type IAProvider } from '../../store/useIAStore';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -10,6 +11,8 @@ import type { IADocument } from '../../types';
 import { encryptText, decryptText } from '../../lib/crypto';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).href;
 
 type Tab = 'chat' | 'knowledge';
 
@@ -137,6 +140,9 @@ export default function IAView() {
   const [showNewDoc, setShowNewDoc] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
+  const [newImageData, setNewImageData] = useState<string | undefined>(undefined);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeConv = conversations.find(c => c.id === activeConvId) ?? null;
 
@@ -224,7 +230,48 @@ export default function IAView() {
 
   const startEditDoc = (doc: IADocument) => { setEditingDocId(doc.id); setEditTitle(doc.title); setEditContent(doc.content); };
   const saveEditDoc = () => { if (!editingDocId) return; updateDocument(editingDocId, { title: editTitle.trim(), content: editContent.trim() }); setEditingDocId(null); };
-  const saveNewDoc = () => { if (!newTitle.trim() || !newContent.trim()) return; addDocument({ title: newTitle.trim(), content: newContent.trim() }); setNewTitle(''); setNewContent(''); setShowNewDoc(false); };
+  const saveNewDoc = () => {
+    if (!newTitle.trim()) return;
+    addDocument({ title: newTitle.trim(), content: newContent.trim(), imageData: newImageData });
+    setNewTitle(''); setNewContent(''); setNewImageData(undefined); setShowNewDoc(false);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadLoading(true);
+    try {
+      if (file.type === 'application/pdf') {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+        let text = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          text += content.items.map((item) => ('str' in item ? item.str : '')).join(' ') + '\n';
+        }
+        setNewTitle(file.name.replace(/\.pdf$/i, ''));
+        setNewContent(text.trim());
+        setNewImageData(undefined);
+        setShowNewDoc(true);
+      } else if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          setNewTitle(file.name.replace(/\.[^.]+$/, ''));
+          setNewContent('');
+          setNewImageData(dataUrl);
+          setShowNewDoc(true);
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch (err) {
+      console.error('Upload error', err);
+    } finally {
+      setUploadLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   return (
     <div className="flex h-[calc(100vh-64px)] gap-0 -mx-4 -mt-4 overflow-hidden">
@@ -374,18 +421,44 @@ export default function IAView() {
                 <h2 className="font-semibold text-gray-800">Base de connaissances</h2>
                 <p className="text-xs text-gray-500 mt-0.5">L'IA répond <strong>uniquement</strong> à partir de ces documents.</p>
               </div>
-              <button onClick={() => setShowNewDoc(true)} className="flex items-center gap-2 bg-[#00c875] hover:bg-[#00b368] text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-                <Plus className="w-4 h-4" /> Ajouter un document
-              </button>
+              <div className="flex items-center gap-2">
+                <input ref={fileInputRef} type="file" accept=".pdf,image/*" className="hidden" onChange={handleFileUpload} />
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploadLoading}
+                  className="flex items-center gap-2 border border-[#00c875] text-[#00c875] hover:bg-[#00c875]/10 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-60">
+                  {uploadLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  {uploadLoading ? 'Chargement...' : 'Importer PDF / Image'}
+                </button>
+                <button onClick={() => { setNewImageData(undefined); setShowNewDoc(true); }} className="flex items-center gap-2 bg-[#00c875] hover:bg-[#00b368] text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                  <Plus className="w-4 h-4" /> Texte libre
+                </button>
+              </div>
             </div>
             {showNewDoc && (
               <div className="bg-[#00c875]/5 border-2 border-dashed border-[#00c875]/40 rounded-xl p-4 space-y-3">
-                <p className="text-sm font-semibold text-[#00c875]">Nouveau document</p>
+                <p className="text-sm font-semibold text-[#00c875]">
+                  {newImageData ? 'Image importée' : 'Nouveau document'}
+                </p>
+                {newImageData && (
+                  <div className="relative inline-block">
+                    <img src={newImageData} alt="aperçu" className="max-h-48 rounded-lg border border-gray-200 object-contain bg-gray-50" />
+                    <button onClick={() => setNewImageData(undefined)} className="absolute top-1 right-1 bg-white/90 rounded-full p-0.5 text-gray-500 hover:text-red-500">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
                 <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Titre du document" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875]" />
-                <textarea value={newContent} onChange={e => setNewContent(e.target.value)} placeholder="Contenu — copiez-collez le texte complet..." rows={8} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875] resize-y" />
+                <textarea value={newContent} onChange={e => setNewContent(e.target.value)}
+                  placeholder={newImageData ? "Description de l'image (recommandé pour que l'IA puisse l'utiliser)..." : "Contenu — copiez-collez le texte complet..."}
+                  rows={newImageData ? 4 : 8} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00c875] resize-y" />
+                {newImageData && (
+                  <p className="text-xs text-amber-600 flex items-start gap-1">
+                    <span className="shrink-0">💡</span>
+                    Ajoutez une description pour que l'IA puisse répondre aux questions sur cette image.
+                  </p>
+                )}
                 <div className="flex gap-2 justify-end">
-                  <button onClick={() => { setShowNewDoc(false); setNewTitle(''); setNewContent(''); }} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">Annuler</button>
-                  <button onClick={saveNewDoc} disabled={!newTitle.trim() || !newContent.trim()} className="px-4 py-2 text-sm bg-[#00c875] text-white rounded-lg hover:bg-[#00b368] disabled:opacity-50 font-medium">Enregistrer</button>
+                  <button onClick={() => { setShowNewDoc(false); setNewTitle(''); setNewContent(''); setNewImageData(undefined); }} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">Annuler</button>
+                  <button onClick={saveNewDoc} disabled={!newTitle.trim()} className="px-4 py-2 text-sm bg-[#00c875] text-white rounded-lg hover:bg-[#00b368] disabled:opacity-50 font-medium">Enregistrer</button>
                 </div>
               </div>
             )}
@@ -393,7 +466,7 @@ export default function IAView() {
               <div className="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center">
                 <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500 font-medium">Aucun document</p>
-                <p className="text-gray-400 text-sm mt-1">Ajoutez comptes-rendus, délibérations, notes… L'IA n'utilisera que ces sources.</p>
+                <p className="text-gray-400 text-sm mt-1">Importez des PDFs, captures d'écran ou rédigez du texte. L'IA n'utilisera que ces sources.</p>
               </div>
             )}
             {documents.map(doc => (
@@ -411,7 +484,7 @@ export default function IAView() {
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="w-4 h-4 text-[#00c875] shrink-0" />
+                        {doc.imageData ? <ImageIcon className="w-4 h-4 text-purple-500 shrink-0" /> : <FileText className="w-4 h-4 text-[#00c875] shrink-0" />}
                         <p className="font-semibold text-gray-800 truncate">{doc.title}</p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
@@ -420,10 +493,15 @@ export default function IAView() {
                       </div>
                     </div>
                     <p className="text-xs text-gray-400 mt-1">{format(parseISO(doc.updatedAt), 'd MMM yyyy à HH:mm', { locale: fr })} · {doc.content.length.toLocaleString('fr-FR')} caractères</p>
-                    <details className="mt-2">
-                      <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 flex items-center gap-1"><ChevronDown className="w-3 h-3" />Aperçu</summary>
-                      <p className="mt-2 text-xs text-gray-600 bg-gray-50 rounded-lg p-3 whitespace-pre-wrap max-h-40 overflow-y-auto">{doc.content}</p>
-                    </details>
+                    {doc.imageData && (
+                      <img src={doc.imageData} alt={doc.title} className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain bg-gray-50" />
+                    )}
+                    {doc.content && (
+                      <details className="mt-2">
+                        <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 flex items-center gap-1"><ChevronDown className="w-3 h-3" />Aperçu</summary>
+                        <p className="mt-2 text-xs text-gray-600 bg-gray-50 rounded-lg p-3 whitespace-pre-wrap max-h-40 overflow-y-auto">{doc.content}</p>
+                      </details>
+                    )}
                   </div>
                 )}
               </div>

@@ -121,6 +121,7 @@ export interface IADocument {
   id: string;
   title: string;
   content: string;
+  imageData?: string; // base64 data URL for image documents
   createdAt: string;
   updatedAt: string;
 }
