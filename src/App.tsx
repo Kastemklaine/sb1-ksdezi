@@ -16,6 +16,7 @@ import WorkspaceView from './components/workspace/WorkspaceView';
 import FinalDocumentView from './components/workspace/FinalDocumentView';
 import DiagramsView from './components/diagrams/DiagramsView';
 import LegalView from './components/legal/LegalView';
+import IAView from './components/ia/IAView';
 
 export type View =
   | { type: 'dashboard' }
@@ -31,7 +32,8 @@ export type View =
   | { type: 'workspace'; workstreamId: string }
   | { type: 'final-document' }
   | { type: 'diagrams' }
-  | { type: 'legal' };
+  | { type: 'legal' }
+  | { type: 'ia' };
 
 export default function App() {
   const currentUser = useAuthStore(s => s.currentUser);
@@ -55,6 +57,7 @@ export default function App() {
       {view.type === 'final-document' && <FinalDocumentView />}
       {view.type === 'diagrams' && <DiagramsView setView={setView} />}
       {view.type === 'legal' && <LegalView />}
+      {view.type === 'ia' && <IAView />}
     </Layout>
   );
 }

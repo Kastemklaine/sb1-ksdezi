@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   LayoutDashboard, Users, FileText, Network, LogOut, Menu, X,
-  ChevronDown, ChevronRight, Settings, Bell, MessageSquare, Calendar, FolderKanban, ShieldCheck, FolderOpen, GitBranch
+  ChevronDown, ChevronRight, Settings, Bell, MessageSquare, Calendar, FolderKanban, ShieldCheck, FolderOpen, GitBranch, Bot
 } from 'lucide-react';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -108,6 +108,7 @@ export default function Layout({ view, setView, children }: Props) {
     if (view.type === 'workspace') return 'Espace de travail';
     if (view.type === 'final-document') return 'Dossier final';
     if (view.type === 'diagrams') return 'Schémas';
+    if (view.type === 'ia') return 'Assistant IA';
     return '';
   };
 
@@ -182,6 +183,7 @@ export default function Layout({ view, setView, children }: Props) {
           {navItem('Espaces de travail', FolderOpen, { type: 'workspaces' })}
           {navItem('Dossier final', FileText, { type: 'final-document' })}
           {navItem('Schémas', GitBranch, { type: 'diagrams' })}
+          {navItem('Assistant IA', Bot, { type: 'ia' })}
           {currentUser?.role === 'superadmin' && navItem('Utilisateurs', Users, { type: 'users' })}
           {currentUser?.role === 'superadmin' && navItem('Paramètres', Settings, { type: 'settings' })}
           {currentUser?.role === 'superadmin' && navItem('Projets', FolderKanban, { type: 'projects' })}
