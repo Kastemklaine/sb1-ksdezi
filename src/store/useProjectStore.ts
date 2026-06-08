@@ -69,8 +69,8 @@ interface ProjectState {
   markMessageRead: (messageId: string, userId: string) => void;
   deleteMessage: (messageId: string) => void;
   // IA knowledge base (shared, managed by superadmin)
-  addIADocument: (doc: { title: string; content: string }) => void;
-  updateIADocument: (id: string, patch: { title?: string; content?: string }) => void;
+  addIADocument: (doc: { title: string; content: string; imageData?: string }) => void;
+  updateIADocument: (id: string, patch: { title?: string; content?: string; imageData?: string }) => void;
   deleteIADocument: (id: string) => void;
   // Sync: replace a project with remote data
   syncFromRemote: (project: Project) => void;
