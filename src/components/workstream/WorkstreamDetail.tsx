@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, AlertTriangle, CheckCircle2, Clock, Ban, ChevronDown, LayoutList, Kanban, Pencil, Trash2, FolderOpen } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle2, Clock, Ban, ChevronDown, LayoutList, Kanban, Pencil, Trash2, FolderOpen, Download } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RichTextEditor from '../editor/RichTextEditor';
@@ -63,6 +63,26 @@ export default function WorkstreamDetail({ workstreamId, setView }: Props) {
   if (!ws) return <p className="text-gray-500">Axe introuvable.</p>;
 
   const filtered = filter === 'all' ? wsTasks : wsTasks.filter(t => t.status === filter);
+
+  const exportCSV = () => {
+    const STATUS_LABEL: Record<TaskStatus, string> = { todo: 'À faire', inprogress: 'En cours', done: 'Terminé', blocked: 'Bloqué' };
+    const headers = ['Titre', 'Statut', 'Responsables', 'Date début', 'Date fin', 'Budget (€)', 'Dépendances'];
+    const rows = wsTasks.map(t => [
+      `"${t.title.replace(/"/g, '""')}"`,
+      STATUS_LABEL[t.status],
+      `"${getAssignees(t.assigneeIds).map(u => u.name).join(', ')}"`,
+      t.startDate,
+      t.endDate,
+      t.budget > 0 ? t.budget.toString() : '',
+      `"${t.dependsOn.map(id => tasks.find(x => x.id === id)?.title ?? id).join(', ')}"`,
+    ]);
+    const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `taches-${ws?.name ?? 'export'}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
 
   const openCreate = (status: TaskStatus = 'todo') => {
     setSelectedTask(undefined);
@@ -161,6 +181,12 @@ export default function WorkstreamDetail({ workstreamId, setView }: Props) {
           </div>
 
           <div className="flex items-center gap-2 min-w-0">
+            {wsTasks.length > 0 && (
+              <button onClick={exportCSV} title="Exporter en CSV"
+                className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors">
+                <Download className="w-4 h-4" />
+              </button>
+            )}
             {viewMode === 'table' && (
               <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none">
                 {(['all', 'todo', 'inprogress', 'done', 'blocked'] as const).map(f => (

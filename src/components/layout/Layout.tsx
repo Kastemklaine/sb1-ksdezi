@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Users, FileText, Network, LogOut, Menu, X,
-  ChevronDown, ChevronRight, Settings, Bell, MessageSquare, Calendar, FolderKanban, ShieldCheck, FolderOpen, GitBranch, Bot
+  ChevronDown, ChevronRight, Settings, MessageSquare, Calendar, FolderKanban, ShieldCheck, FolderOpen, GitBranch, Bot, Search
 } from 'lucide-react';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -10,6 +10,8 @@ import type { View } from '../../App';
 import TwoFactorSetup from '../profile/TwoFactorSetup';
 import MyProfileModal from '../profile/MyProfileModal';
 import QuimperleLogoK from '../ui/QuimperleLogoK';
+import NotificationBell from '../notifications/NotificationBell';
+import SearchModal from '../search/SearchModal';
 
 interface Props {
   view: View;
@@ -54,6 +56,15 @@ export default function Layout({ view, setView, children }: Props) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
   const [showMyProfile, setShowMyProfile] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setShowSearch(true); }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   const navigateTo = (v: View) => {
     setView(v);
@@ -321,9 +332,19 @@ export default function Layout({ view, setView, children }: Props) {
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors relative min-w-[44px] min-h-[44px] flex items-center justify-center">
-              <Bell className="w-4 h-4" />
+            {/* Search button */}
+            <button
+              onClick={() => setShowSearch(true)}
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-400 text-sm transition-colors"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Rechercher…</span>
+              <kbd className="ml-1 text-xs bg-white border border-gray-200 rounded px-1 py-0.5">⌘K</kbd>
             </button>
+            <button onClick={() => setShowSearch(true)} className="sm:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+              <Search className="w-4 h-4" />
+            </button>
+            <NotificationBell setView={setView} />
             {/* User avatar menu */}
             <div className="relative">
               <button
@@ -415,6 +436,7 @@ export default function Layout({ view, setView, children }: Props) {
 
       {show2FA && <TwoFactorSetup onClose={() => setShow2FA(false)} />}
       {showMyProfile && <MyProfileModal onClose={() => setShowMyProfile(false)} />}
+      {showSearch && <SearchModal onClose={() => setShowSearch(false)} setView={setView} />}
     </div>
   );
 }

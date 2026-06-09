@@ -1,24 +1,26 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import React from 'react';
 import { useAuthStore } from './store/useAuthStore';
 import { useFirestoreSync } from './hooks/useFirestoreSync';
 import LoginPage from './components/auth/LoginPage';
 import Layout from './components/layout/Layout';
 import Dashboard from './components/dashboard/Dashboard';
-import WorkstreamDetail from './components/workstream/WorkstreamDetail';
-import UserManagement from './components/admin/UserManagement';
-import FinalPageView from './components/finalpage/FinalPageView';
-import GovernanceView from './components/governance/GovernanceView';
-import SettingsView from './components/admin/SettingsView';
-import MessagingView from './components/messaging/MessagingView';
-import CalendarView from './components/calendar/CalendarView';
-import ProjectsView from './components/projects/ProjectsView';
-import WorkspacesSelector from './components/workspace/WorkspacesSelector';
-import WorkspaceView from './components/workspace/WorkspaceView';
-import FinalDocumentView from './components/workspace/FinalDocumentView';
-import DiagramsView from './components/diagrams/DiagramsView';
-import LegalView from './components/legal/LegalView';
-import IAView from './components/ia/IAView';
+
+// Heavy modules loaded on demand
+const WorkstreamDetail = lazy(() => import('./components/workstream/WorkstreamDetail'));
+const UserManagement = lazy(() => import('./components/admin/UserManagement'));
+const FinalPageView = lazy(() => import('./components/finalpage/FinalPageView'));
+const GovernanceView = lazy(() => import('./components/governance/GovernanceView'));
+const SettingsView = lazy(() => import('./components/admin/SettingsView'));
+const MessagingView = lazy(() => import('./components/messaging/MessagingView'));
+const CalendarView = lazy(() => import('./components/calendar/CalendarView'));
+const ProjectsView = lazy(() => import('./components/projects/ProjectsView'));
+const WorkspacesSelector = lazy(() => import('./components/workspace/WorkspacesSelector'));
+const WorkspaceView = lazy(() => import('./components/workspace/WorkspaceView'));
+const FinalDocumentView = lazy(() => import('./components/workspace/FinalDocumentView'));
+const DiagramsView = lazy(() => import('./components/diagrams/DiagramsView'));
+const LegalView = lazy(() => import('./components/legal/LegalView'));
+const IAView = lazy(() => import('./components/ia/IAView'));
 
 export type View =
   | { type: 'dashboard' }
@@ -59,21 +61,23 @@ function AppInner({ view, setView }: { view: View; setView: (v: View) => void })
 
   return (
     <Layout view={view} setView={setView}>
-      {view.type === 'dashboard' && <Dashboard setView={setView} />}
-      {view.type === 'workstream' && <WorkstreamDetail workstreamId={view.id} setView={setView} />}
-      {view.type === 'users' && guard(isSuperAdmin, <UserManagement />)}
-      {view.type === 'finalpage' && <FinalPageView />}
-      {view.type === 'governance' && guard(isAdmin, <GovernanceView />)}
-      {view.type === 'settings' && guard(isSuperAdmin, <SettingsView />)}
-      {view.type === 'messaging' && <MessagingView />}
-      {view.type === 'calendar' && <CalendarView setView={setView} />}
-      {view.type === 'projects' && guard(isSuperAdmin, <ProjectsView />)}
-      {view.type === 'workspaces' && <WorkspacesSelector setView={setView} />}
-      {view.type === 'workspace' && <WorkspaceView workstreamId={view.workstreamId} setView={setView} />}
-      {view.type === 'final-document' && <FinalDocumentView />}
-      {view.type === 'diagrams' && <DiagramsView setView={setView} />}
-      {view.type === 'legal' && <LegalView />}
-      {view.type === 'ia' && <IAView />}
+      <Suspense fallback={<div className="flex items-center justify-center h-64 text-gray-400 text-sm">Chargement...</div>}>
+        {view.type === 'dashboard' && <Dashboard setView={setView} />}
+        {view.type === 'workstream' && <WorkstreamDetail workstreamId={view.id} setView={setView} />}
+        {view.type === 'users' && guard(isSuperAdmin, <UserManagement />)}
+        {view.type === 'finalpage' && <FinalPageView />}
+        {view.type === 'governance' && guard(isAdmin, <GovernanceView />)}
+        {view.type === 'settings' && guard(isSuperAdmin, <SettingsView />)}
+        {view.type === 'messaging' && <MessagingView />}
+        {view.type === 'calendar' && <CalendarView setView={setView} />}
+        {view.type === 'projects' && guard(isSuperAdmin, <ProjectsView />)}
+        {view.type === 'workspaces' && <WorkspacesSelector setView={setView} />}
+        {view.type === 'workspace' && <WorkspaceView workstreamId={view.workstreamId} setView={setView} />}
+        {view.type === 'final-document' && <FinalDocumentView />}
+        {view.type === 'diagrams' && <DiagramsView setView={setView} />}
+        {view.type === 'legal' && <LegalView />}
+        {view.type === 'ia' && <IAView />}
+      </Suspense>
     </Layout>
   );
 }

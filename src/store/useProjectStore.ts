@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuid } from 'uuid';
-import type { Task, Workstream, GovernanceInstance, TaskStatus, Project, WorkspaceDocument, WorkspaceDiscussion, WorkstreamSubSection, CalendarEvent, Message, MessageAttachment } from '../types';
+import type { Task, Workstream, GovernanceInstance, TaskStatus, Project, WorkspaceDocument, WorkspaceDiscussion, WorkstreamSubSection, CalendarEvent, Message, MessageAttachment, TaskComment, TaskAttachment } from '../types';
 
 const WORKSTREAMS: Workstream[] = [
   { id: 'ws1', name: 'Communication', color: 'bg-yellow-400', textColor: 'text-yellow-900', description: 'Stratégie et actions de communication du projet', notes: '', icon: 'Megaphone', instance: 'both', assigneeIds: [], subSections: [] },
@@ -59,6 +59,15 @@ interface ProjectState {
   updateTaskStatus: (id: string, status: TaskStatus) => void;
   updateFinalPage: (content: string, userId: string) => void;
   updateGovernance: (id: string, data: Partial<GovernanceInstance>) => void;
+  createGovernance: (name: string) => void;
+  deleteGovernance: (id: string) => void;
+  moveGovernance: (id: string, direction: 'up' | 'down') => void;
+  // Task comments & attachments
+  addTaskComment: (taskId: string, authorId: string, content: string) => void;
+  deleteTaskComment: (taskId: string, commentId: string) => void;
+  addTaskAttachment: (taskId: string, attachment: Omit<TaskAttachment, 'id' | 'uploadedAt'>) => void;
+  removeTaskAttachment: (taskId: string, attachmentId: string) => void;
+  reorderTask: (taskId: string, newStatus: TaskStatus, newOrder: number) => void;
   // Workspace document actions
   createDocument: (doc: Omit<WorkspaceDocument, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateDocument: (id: string, data: Partial<WorkspaceDocument>) => void;
@@ -337,6 +346,69 @@ export const useProjectStore = create<ProjectState>()(
 
       setGroqModel: (model) => {
         updateCur(set, () => ({ groqModel: model }));
+      },
+
+      createGovernance: (name) => {
+        const g: GovernanceInstance = { id: uuid(), name, description: '', memberIds: [], workstreamIds: [] };
+        updateCur(set, p => ({ governance: [...(p.governance ?? []), g] }));
+      },
+
+      deleteGovernance: (id) => {
+        updateCur(set, p => ({ governance: (p.governance ?? []).filter(g => g.id !== id) }));
+      },
+
+      moveGovernance: (id, direction) => {
+        updateCur(set, p => {
+          const arr = [...(p.governance ?? [])];
+          const idx = arr.findIndex(g => g.id === id);
+          if (idx < 0) return {};
+          const to = direction === 'up' ? idx - 1 : idx + 1;
+          if (to < 0 || to >= arr.length) return {};
+          [arr[idx], arr[to]] = [arr[to], arr[idx]];
+          return { governance: arr };
+        });
+      },
+
+      addTaskComment: (taskId, authorId, content) => {
+        const comment: TaskComment = { id: uuid(), authorId, content, createdAt: new Date().toISOString() };
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === taskId
+            ? { ...t, comments: [...(t.comments ?? []), comment], updatedAt: new Date().toISOString() }
+            : t)
+        }));
+      },
+
+      deleteTaskComment: (taskId, commentId) => {
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === taskId
+            ? { ...t, comments: (t.comments ?? []).filter(c => c.id !== commentId) }
+            : t)
+        }));
+      },
+
+      addTaskAttachment: (taskId, attachment) => {
+        const att: TaskAttachment = { ...attachment, id: uuid(), uploadedAt: new Date().toISOString() };
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === taskId
+            ? { ...t, attachments: [...(t.attachments ?? []), att], updatedAt: new Date().toISOString() }
+            : t)
+        }));
+      },
+
+      removeTaskAttachment: (taskId, attachmentId) => {
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === taskId
+            ? { ...t, attachments: (t.attachments ?? []).filter(a => a.id !== attachmentId) }
+            : t)
+        }));
+      },
+
+      reorderTask: (taskId, newStatus, newOrder) => {
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === taskId
+            ? { ...t, status: newStatus, order: newOrder, updatedAt: new Date().toISOString() }
+            : t)
+        }));
       },
 
       syncFromRemote: (project) => {
