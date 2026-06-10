@@ -37,7 +37,7 @@ export default function GovernanceView() {
 
   const handleCreate = () => {
     if (!newName.trim()) return;
-    createGovernance(newName.trim());
+    createGovernance(newName.trim(), '');
     setNewName('');
     setShowNewForm(false);
   };

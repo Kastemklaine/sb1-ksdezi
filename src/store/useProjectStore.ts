@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuid } from 'uuid';
-import type { Task, Workstream, GovernanceInstance, TaskStatus, Project, WorkspaceDocument, WorkspaceDiscussion, WorkstreamSubSection, CalendarEvent, Message, MessageAttachment, TaskComment, TaskAttachment } from '../types';
+import type { Task, Workstream, GovernanceInstance, TaskStatus, Project, WorkspaceDocument, WorkspaceDiscussion, WorkstreamSubSection, CalendarEvent, Message, MessageAttachment, TaskAttachment, TaskComment, ChecklistItem } from '../types';
 
 const WORKSTREAMS: Workstream[] = [
   { id: 'ws1', name: 'Communication', color: 'bg-yellow-400', textColor: 'text-yellow-900', description: 'Stratégie et actions de communication du projet', notes: '', icon: 'Megaphone', instance: 'both', assigneeIds: [], subSections: [] },
@@ -59,15 +59,6 @@ interface ProjectState {
   updateTaskStatus: (id: string, status: TaskStatus) => void;
   updateFinalPage: (content: string, userId: string) => void;
   updateGovernance: (id: string, data: Partial<GovernanceInstance>) => void;
-  createGovernance: (name: string) => void;
-  deleteGovernance: (id: string) => void;
-  moveGovernance: (id: string, direction: 'up' | 'down') => void;
-  // Task comments & attachments
-  addTaskComment: (taskId: string, authorId: string, content: string) => void;
-  deleteTaskComment: (taskId: string, commentId: string) => void;
-  addTaskAttachment: (taskId: string, attachment: Omit<TaskAttachment, 'id' | 'uploadedAt'>) => void;
-  removeTaskAttachment: (taskId: string, attachmentId: string) => void;
-  reorderTask: (taskId: string, newStatus: TaskStatus, newOrder: number) => void;
   // Workspace document actions
   createDocument: (doc: Omit<WorkspaceDocument, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateDocument: (id: string, data: Partial<WorkspaceDocument>) => void;
@@ -92,6 +83,21 @@ interface ProjectState {
   removeFonction: (label: string) => void;
   setGroqKey: (key: string) => void;
   setGroqModel: (model: string) => void;
+  updateProjectLogo: (logoUrl: string) => void;
+  // Checklist
+  addChecklistItem: (taskId: string, text: string) => void;
+  toggleChecklistItem: (taskId: string, itemId: string) => void;
+  deleteChecklistItem: (taskId: string, itemId: string) => void;
+  // Comments
+  addTaskComment: (taskId: string, authorId: string, content: string) => void;
+  deleteTaskComment: (taskId: string, commentId: string) => void;
+  // Attachments
+  addTaskAttachment: (taskId: string, att: TaskAttachment) => void;
+  removeTaskAttachment: (taskId: string, attId: string) => void;
+  // Governance (CRUD + reorder)
+  createGovernance: (name: string, description: string) => void;
+  deleteGovernance: (id: string) => void;
+  moveGovernance: (id: string, direction: 'up' | 'down') => void;
   // Sync: replace a project with remote data
   syncFromRemote: (project: Project) => void;
 }
@@ -185,7 +191,13 @@ export const useProjectStore = create<ProjectState>()(
 
       updateTask: (id, data) => {
         updateCur(set, p => ({
-          tasks: p.tasks.map(t => t.id === id ? { ...t, ...data, updatedAt: new Date().toISOString() } : t)
+          tasks: p.tasks.map(t => {
+            if (t.id !== id) return t;
+            const historyEntry = data.status && data.status !== t.status
+              ? [{ id: uuid(), userId: '', label: `Statut : ${t.status} → ${data.status}`, at: new Date().toISOString() }]
+              : [];
+            return { ...t, ...data, history: [...historyEntry, ...(t.history ?? [])].slice(0, 50), updatedAt: new Date().toISOString() };
+          })
         }));
       },
 
@@ -348,9 +360,71 @@ export const useProjectStore = create<ProjectState>()(
         updateCur(set, () => ({ groqModel: model }));
       },
 
-      createGovernance: (name) => {
-        const g: GovernanceInstance = { id: uuid(), name, description: '', memberIds: [], workstreamIds: [] };
-        updateCur(set, p => ({ governance: [...(p.governance ?? []), g] }));
+      updateProjectLogo: (logoUrl) => {
+        updateCur(set, () => ({ logoUrl }));
+      },
+
+      addChecklistItem: (taskId, text) => {
+        const item: ChecklistItem = { id: uuid(), text, done: false };
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === taskId
+            ? { ...t, checklist: [...(t.checklist ?? []), item], updatedAt: new Date().toISOString() }
+            : t)
+        }));
+      },
+
+      toggleChecklistItem: (taskId, itemId) => {
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === taskId
+            ? { ...t, checklist: (t.checklist ?? []).map(c => c.id === itemId ? { ...c, done: !c.done } : c), updatedAt: new Date().toISOString() }
+            : t)
+        }));
+      },
+
+      deleteChecklistItem: (taskId, itemId) => {
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === taskId
+            ? { ...t, checklist: (t.checklist ?? []).filter(c => c.id !== itemId), updatedAt: new Date().toISOString() }
+            : t)
+        }));
+      },
+
+      addTaskComment: (taskId, authorId, content) => {
+        const comment: TaskComment = { id: uuid(), authorId, content, createdAt: new Date().toISOString() };
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === taskId
+            ? { ...t, comments: [...(t.comments ?? []), comment], updatedAt: new Date().toISOString() }
+            : t)
+        }));
+      },
+
+      deleteTaskComment: (taskId, commentId) => {
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === taskId
+            ? { ...t, comments: (t.comments ?? []).filter(c => c.id !== commentId), updatedAt: new Date().toISOString() }
+            : t)
+        }));
+      },
+
+      addTaskAttachment: (taskId, att) => {
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === taskId
+            ? { ...t, attachments: [...(t.attachments ?? []), att], updatedAt: new Date().toISOString() }
+            : t)
+        }));
+      },
+
+      removeTaskAttachment: (taskId, attId) => {
+        updateCur(set, p => ({
+          tasks: p.tasks.map(t => t.id === taskId
+            ? { ...t, attachments: (t.attachments ?? []).filter(a => a.id !== attId), updatedAt: new Date().toISOString() }
+            : t)
+        }));
+      },
+
+      createGovernance: (name, description) => {
+        const gov = { id: uuid(), name, description, memberIds: [], workstreamIds: [] };
+        updateCur(set, p => ({ governance: [...(p.governance ?? []), gov] }));
       },
 
       deleteGovernance: (id) => {
@@ -367,48 +441,6 @@ export const useProjectStore = create<ProjectState>()(
           [arr[idx], arr[to]] = [arr[to], arr[idx]];
           return { governance: arr };
         });
-      },
-
-      addTaskComment: (taskId, authorId, content) => {
-        const comment: TaskComment = { id: uuid(), authorId, content, createdAt: new Date().toISOString() };
-        updateCur(set, p => ({
-          tasks: p.tasks.map(t => t.id === taskId
-            ? { ...t, comments: [...(t.comments ?? []), comment], updatedAt: new Date().toISOString() }
-            : t)
-        }));
-      },
-
-      deleteTaskComment: (taskId, commentId) => {
-        updateCur(set, p => ({
-          tasks: p.tasks.map(t => t.id === taskId
-            ? { ...t, comments: (t.comments ?? []).filter(c => c.id !== commentId) }
-            : t)
-        }));
-      },
-
-      addTaskAttachment: (taskId, attachment) => {
-        const att: TaskAttachment = { ...attachment, id: uuid(), uploadedAt: new Date().toISOString() };
-        updateCur(set, p => ({
-          tasks: p.tasks.map(t => t.id === taskId
-            ? { ...t, attachments: [...(t.attachments ?? []), att], updatedAt: new Date().toISOString() }
-            : t)
-        }));
-      },
-
-      removeTaskAttachment: (taskId, attachmentId) => {
-        updateCur(set, p => ({
-          tasks: p.tasks.map(t => t.id === taskId
-            ? { ...t, attachments: (t.attachments ?? []).filter(a => a.id !== attachmentId) }
-            : t)
-        }));
-      },
-
-      reorderTask: (taskId, newStatus, newOrder) => {
-        updateCur(set, p => ({
-          tasks: p.tasks.map(t => t.id === taskId
-            ? { ...t, status: newStatus, order: newOrder, updatedAt: new Date().toISOString() }
-            : t)
-        }));
       },
 
       syncFromRemote: (project) => {

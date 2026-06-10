@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Users, FileText, Network, LogOut, Menu, X,
-  ChevronDown, ChevronRight, Settings, MessageSquare, Calendar, FolderKanban, ShieldCheck, FolderOpen, GitBranch, Bot, Search
+  ChevronDown, ChevronRight, Settings, MessageSquare, Calendar, FolderKanban, ShieldCheck, FolderOpen, GitBranch, Bot, CalendarRange, Search
 } from 'lucide-react';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -41,6 +41,7 @@ export default function Layout({ view, setView, children }: Props) {
   const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
   const projectName = useProjectStore(s => curProject(s)?.name ?? '');
   const projectSubtitle = useProjectStore(s => curProject(s)?.subtitle ?? '');
+  const logoUrl = useProjectStore(s => curProject(s)?.logoUrl ?? '');
   const { current: fontSize, setFontSize } = useFontSize();
   const allMessages = useProjectStore(s => curProject(s)?.messages ?? []);
   const unreadCount = currentUser
@@ -122,6 +123,7 @@ export default function Layout({ view, setView, children }: Props) {
     if (view.type === 'final-document') return 'Dossier final';
     if (view.type === 'diagrams') return 'Schémas';
     if (view.type === 'ia') return 'Assistant IA';
+    if (view.type === 'gantt') return 'Planning';
     return '';
   };
 
@@ -135,14 +137,18 @@ export default function Layout({ view, setView, children }: Props) {
         <div className={`flex items-center gap-2 px-3 py-4 border-b border-white/10 ${expanded ? 'justify-between' : 'justify-center'}`}>
           {expanded && (
             <div className="flex items-center gap-2 min-w-0">
-              <QuimperleLogoK size={28} className="shrink-0" />
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo" className="h-8 w-auto max-w-[100px] object-contain rounded shrink-0" />
+              ) : (
+                <QuimperleLogoK size={28} className="shrink-0" />
+              )}
               <div className="min-w-0">
                 <p className="font-bold text-white text-xs leading-tight truncate">{projectName}</p>
                 <p className="text-[#00c875] text-xs mt-0.5 truncate">{projectSubtitle}</p>
               </div>
             </div>
           )}
-          {!expanded && <QuimperleLogoK size={24} />}
+          {!expanded && (logoUrl ? <img src={logoUrl} alt="Logo" className="h-6 w-auto max-w-[32px] object-contain rounded" /> : <QuimperleLogoK size={24} />)}
           {isMobileDrawer ? (
             <button
               onClick={() => setSidebarOpen(false)}
@@ -195,6 +201,7 @@ export default function Layout({ view, setView, children }: Props) {
           {navItem('Agenda', Calendar, { type: 'calendar' })}
           {navItem('Espaces de travail', FolderOpen, { type: 'workspaces' })}
           {navItem('Dossier final', FileText, { type: 'final-document' })}
+          {navItem('Planning', CalendarRange, { type: 'gantt' })}
           {navItem('Schémas', GitBranch, { type: 'diagrams' })}
           {navItem('Assistant IA', Bot, { type: 'ia' })}
           {currentUser?.role === 'superadmin' && navItem('Utilisateurs', Users, { type: 'users' })}
@@ -332,17 +339,11 @@ export default function Layout({ view, setView, children }: Props) {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Search button */}
-            <button
-              onClick={() => setShowSearch(true)}
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-400 text-sm transition-colors"
-            >
-              <Search className="w-3.5 h-3.5" />
-              <span>Rechercher…</span>
-              <kbd className="ml-1 text-xs bg-white border border-gray-200 rounded px-1 py-0.5">⌘K</kbd>
-            </button>
-            <button onClick={() => setShowSearch(true)} className="sm:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+            <button onClick={() => setShowSearch(true)} title="Rechercher (Cmd+K)"
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-lg text-sm transition-colors min-h-[36px]">
               <Search className="w-4 h-4" />
+              <span className="hidden lg:inline text-xs text-gray-400">Rechercher...</span>
+              <span className="hidden lg:inline text-xs text-gray-300 bg-white border border-gray-200 px-1.5 py-0.5 rounded">⌘K</span>
             </button>
             <NotificationBell setView={setView} />
             {/* User avatar menu */}

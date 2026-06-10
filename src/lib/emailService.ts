@@ -7,6 +7,7 @@ const TEMPLATES = {
   assignment: import.meta.env.VITE_EMAILJS_TEMPLATE_ASSIGNMENT ?? '',
   password:   import.meta.env.VITE_EMAILJS_TEMPLATE_PASSWORD ?? '',
   twoFaReset: import.meta.env.VITE_EMAILJS_TEMPLATE_2FA_RESET ?? '',
+  reminder:   import.meta.env.VITE_EMAILJS_TEMPLATE_REMINDER ?? '',
 };
 const APP_URL = import.meta.env.VITE_APP_URL ?? window.location.origin;
 
@@ -73,4 +74,20 @@ export const sendTwoFaResetEmail = (params: {
     to_email: params.toEmail,
     to_name:  params.toName,
     app_url:  APP_URL,
+  });
+
+export const sendReminderEmail = (params: {
+  toEmail: string;
+  toName: string;
+  taskTitle: string;
+  daysLeft: number;
+  projectName: string;
+}) =>
+  send(TEMPLATES.reminder, {
+    to_email:     params.toEmail,
+    to_name:      params.toName,
+    task_title:   params.taskTitle,
+    days_left:    String(params.daysLeft),
+    project_name: params.projectName,
+    app_url:      APP_URL,
   });

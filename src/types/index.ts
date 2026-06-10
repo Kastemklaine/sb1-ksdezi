@@ -2,7 +2,7 @@ export type Role = 'superadmin' | 'admin' | 'membre';
 
 export interface User {
   id: string;
-  name: string;
+  name: string; // computed: firstName + ' ' + lastName
   firstName?: string;
   lastName?: string;
   email: string;
@@ -15,6 +15,20 @@ export interface User {
 }
 
 export type TaskStatus = 'todo' | 'inprogress' | 'done' | 'blocked';
+export type TaskPriority = 'haute' | 'normale' | 'basse';
+
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export interface TaskHistoryEntry {
+  id: string;
+  userId: string;
+  label: string;
+  at: string;
+}
 
 export interface TaskComment {
   id: string;
@@ -36,17 +50,20 @@ export interface Task {
   id: string;
   workstreamId: string;
   title: string;
-  description: string;
-  notes?: string;
+  description: string; // HTML from Tiptap
+  notes?: string; // HTML — working notes visible to members only
   assigneeIds: string[];
   status: TaskStatus;
+  priority?: TaskPriority;
   startDate: string;
   endDate: string;
   budget: number;
-  dependsOn: string[];
+  dependsOn: string[]; // task ids
   order: number;
+  checklist?: ChecklistItem[];
   comments?: TaskComment[];
   attachments?: TaskAttachment[];
+  history?: TaskHistoryEntry[];
   createdAt: string;
   updatedAt: string;
 }
@@ -62,7 +79,7 @@ export interface WorkspaceDocument {
   workstreamId: string;
   subSectionId?: string;
   title: string;
-  content: string;
+  content: string; // rich text as HTML string or JSON for diagrams
   space: 'travail' | 'final';
   type?: 'document' | 'diagram';
   authorId: string;
@@ -80,13 +97,13 @@ export interface WorkspaceDiscussion {
 export interface Workstream {
   id: string;
   name: string;
-  color: string;
+  color: string; // tailwind bg class
   textColor: string;
   description: string;
-  notes: string;
-  icon: string;
+  notes: string; // HTML from Tiptap
+  icon: string; // lucide icon name
   instance: 'copil' | 'cotec' | 'both' | 'none';
-  assigneeIds: string[];
+  assigneeIds: string[]; // users responsible for this workstream
   subSections: WorkstreamSubSection[];
 }
 
@@ -107,7 +124,7 @@ export interface CalendarEvent {
 
 export interface MessageAttachment {
   name: string;
-  url: string;
+  url: string; // base64 data URL or remote URL
   type: string;
   size: number;
 }
@@ -116,7 +133,7 @@ export interface Message {
   id: string;
   fromId: string;
   fromName: string;
-  toId: string | null;
+  toId: string | null; // null = broadcast to all
   subject: string;
   body: string;
   attachments: MessageAttachment[];
@@ -126,7 +143,7 @@ export interface Message {
 
 export interface GovernanceInstance {
   id: string;
-  name: string;
+  name: string; // COPIL or COTEC
   description: string;
   memberIds: string[];
   workstreamIds: string[];
@@ -134,7 +151,7 @@ export interface GovernanceInstance {
 }
 
 export interface FinalPage {
-  content: string;
+  content: string; // HTML from Tiptap
   updatedAt: string;
   updatedBy: string;
 }
@@ -143,7 +160,7 @@ export interface IADocument {
   id: string;
   title: string;
   content: string;
-  imageData?: string;
+  imageData?: string; // base64 data URL for image documents
   createdAt: string;
   updatedAt: string;
 }
@@ -156,7 +173,7 @@ export interface AppNotification {
   type: NotificationType;
   title: string;
   body: string;
-  link?: string; // e.g. workstreamId
+  link?: string;
   read: boolean;
   createdAt: string;
 }
@@ -165,6 +182,7 @@ export interface Project {
   id: string;
   name: string;
   subtitle: string;
+  logoUrl?: string;
   fonctions: string[];
   groqKey?: string;
   groqModel?: string;

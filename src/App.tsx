@@ -2,11 +2,12 @@ import { useState, lazy, Suspense } from 'react';
 import React from 'react';
 import { useAuthStore } from './store/useAuthStore';
 import { useFirestoreSync } from './hooks/useFirestoreSync';
+import { useEmailReminders } from './hooks/useEmailReminders';
 import LoginPage from './components/auth/LoginPage';
 import Layout from './components/layout/Layout';
-import Dashboard from './components/dashboard/Dashboard';
+import OnboardingTour from './components/onboarding/OnboardingTour';
 
-// Heavy modules loaded on demand
+const Dashboard = lazy(() => import('./components/dashboard/Dashboard'));
 const WorkstreamDetail = lazy(() => import('./components/workstream/WorkstreamDetail'));
 const UserManagement = lazy(() => import('./components/admin/UserManagement'));
 const FinalPageView = lazy(() => import('./components/finalpage/FinalPageView'));
@@ -21,6 +22,7 @@ const FinalDocumentView = lazy(() => import('./components/workspace/FinalDocumen
 const DiagramsView = lazy(() => import('./components/diagrams/DiagramsView'));
 const LegalView = lazy(() => import('./components/legal/LegalView'));
 const IAView = lazy(() => import('./components/ia/IAView'));
+const GanttView = lazy(() => import('./components/gantt/GanttView'));
 
 export type View =
   | { type: 'dashboard' }
@@ -37,7 +39,8 @@ export type View =
   | { type: 'final-document' }
   | { type: 'diagrams' }
   | { type: 'legal' }
-  | { type: 'ia' };
+  | { type: 'ia' }
+  | { type: 'gantt' };
 
 function Forbidden() {
   return (
@@ -51,7 +54,10 @@ function Forbidden() {
 
 function AppInner({ view, setView }: { view: View; setView: (v: View) => void }) {
   useFirestoreSync();
+  useEmailReminders();
   const currentUser = useAuthStore(s => s.currentUser);
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('onboarding-seen-v1'));
+
   if (!currentUser) return <LoginPage />;
 
   const isSuperAdmin = currentUser.role === 'superadmin';
@@ -60,25 +66,29 @@ function AppInner({ view, setView }: { view: View; setView: (v: View) => void })
   const guard = (allowed: boolean, component: React.ReactNode) => allowed ? component : <Forbidden />;
 
   return (
-    <Layout view={view} setView={setView}>
-      <Suspense fallback={<div className="flex items-center justify-center h-64 text-gray-400 text-sm">Chargement...</div>}>
-        {view.type === 'dashboard' && <Dashboard setView={setView} />}
-        {view.type === 'workstream' && <WorkstreamDetail workstreamId={view.id} setView={setView} />}
-        {view.type === 'users' && guard(isSuperAdmin, <UserManagement />)}
-        {view.type === 'finalpage' && <FinalPageView />}
-        {view.type === 'governance' && guard(isAdmin, <GovernanceView />)}
-        {view.type === 'settings' && guard(isSuperAdmin, <SettingsView />)}
-        {view.type === 'messaging' && <MessagingView />}
-        {view.type === 'calendar' && <CalendarView setView={setView} />}
-        {view.type === 'projects' && guard(isSuperAdmin, <ProjectsView />)}
-        {view.type === 'workspaces' && <WorkspacesSelector setView={setView} />}
-        {view.type === 'workspace' && <WorkspaceView workstreamId={view.workstreamId} setView={setView} />}
-        {view.type === 'final-document' && <FinalDocumentView />}
-        {view.type === 'diagrams' && <DiagramsView setView={setView} />}
-        {view.type === 'legal' && <LegalView />}
-        {view.type === 'ia' && <IAView />}
-      </Suspense>
-    </Layout>
+    <>
+      <Layout view={view} setView={setView}>
+        <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-[#00c875] border-t-transparent rounded-full animate-spin" /></div>}>
+          {view.type === 'dashboard' && <Dashboard setView={setView} />}
+          {view.type === 'workstream' && <WorkstreamDetail workstreamId={view.id} setView={setView} />}
+          {view.type === 'users' && guard(isSuperAdmin, <UserManagement />)}
+          {view.type === 'finalpage' && <FinalPageView />}
+          {view.type === 'governance' && guard(isAdmin, <GovernanceView />)}
+          {view.type === 'settings' && guard(isSuperAdmin, <SettingsView />)}
+          {view.type === 'messaging' && <MessagingView />}
+          {view.type === 'calendar' && <CalendarView setView={setView} />}
+          {view.type === 'projects' && guard(isSuperAdmin, <ProjectsView />)}
+          {view.type === 'workspaces' && <WorkspacesSelector setView={setView} />}
+          {view.type === 'workspace' && <WorkspaceView workstreamId={view.workstreamId} setView={setView} />}
+          {view.type === 'final-document' && <FinalDocumentView />}
+          {view.type === 'diagrams' && <DiagramsView setView={setView} />}
+          {view.type === 'legal' && <LegalView />}
+          {view.type === 'ia' && <IAView />}
+          {view.type === 'gantt' && <GanttView setView={setView} />}
+        </Suspense>
+      </Layout>
+      {showOnboarding && <OnboardingTour onClose={() => setShowOnboarding(false)} />}
+    </>
   );
 }
 

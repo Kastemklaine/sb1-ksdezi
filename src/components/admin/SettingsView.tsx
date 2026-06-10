@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { Save, Settings, FolderKanban, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Save, Settings, FolderKanban, Plus, Trash2, AlertTriangle, Image } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { sendAssignmentEmail } from '../../lib/emailService';
 import type { Workstream } from '../../types';
 
-type Tab = 'workstreams' | 'project';
+type Tab = 'workstreams' | 'project' | 'branding';
 
 const PRESET_COLORS: { label: string; tailwind: string; hex: string }[] = [
   { label: 'Jaune', tailwind: 'bg-yellow-400', hex: '#facc15' },
@@ -79,8 +79,11 @@ export default function SettingsView() {
   const deleteWorkstream = useProjectStore(s => s.deleteWorkstream);
   const projectName = useProjectStore(s => curProject(s)?.name ?? 'le projet');
   const projectSubtitle = useProjectStore(s => curProject(s)?.subtitle ?? '');
+  const logoUrl = useProjectStore(s => curProject(s)?.logoUrl ?? '');
   const updateProjectInfo = useProjectStore(s => s.updateProjectInfo);
+  const updateProjectLogo = useProjectStore(s => s.updateProjectLogo);
   const users = useAuthStore(s => s.users);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [rows, setRows] = useState<Record<string, WsRowState>>(() =>
     Object.fromEntries(workstreams.map(ws => [ws.id, {
@@ -184,6 +187,15 @@ export default function SettingsView() {
     setTimeout(() => setProjectSaved(false), 2000);
   };
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => updateProjectLogo(reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   return (
     <div className="space-y-6 max-w-5xl">
       <div>
@@ -206,6 +218,13 @@ export default function SettingsView() {
         >
           <Settings className="w-4 h-4" />
           Projet
+        </button>
+        <button
+          onClick={() => setTab('branding')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'branding' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          <Image className="w-4 h-4" />
+          Branding
         </button>
       </div>
 
@@ -433,6 +452,35 @@ export default function SettingsView() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {tab === 'branding' && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5 max-w-lg">
+          <div>
+            <h2 className="text-base font-semibold text-gray-800 mb-1">Logo du projet</h2>
+            <p className="text-sm text-gray-500">Le logo apparaît dans la barre latérale en remplacement du nom du projet.</p>
+          </div>
+
+          {logoUrl && (
+            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <img src={logoUrl} alt="Logo" className="h-14 w-auto max-w-[160px] object-contain rounded-lg" />
+              <div>
+                <p className="text-sm text-gray-700 font-medium">Logo actuel</p>
+                <button onClick={() => updateProjectLogo('')} className="text-xs text-red-500 hover:text-red-700 mt-1 transition-colors">
+                  Supprimer le logo
+                </button>
+              </div>
+            </div>
+          )}
+
+          <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+          <button onClick={() => logoInputRef.current?.click()}
+            className="flex items-center gap-2 bg-[#00c875] hover:bg-[#00b368] text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]">
+            <Image className="w-4 h-4" />
+            {logoUrl ? 'Changer le logo' : 'Téléverser un logo'}
+          </button>
+          <p className="text-xs text-gray-400">Formats acceptés : PNG, JPG, SVG. Taille recommandée : 200×60 px.</p>
         </div>
       )}
 
