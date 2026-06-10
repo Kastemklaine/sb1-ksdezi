@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Plus, AlertTriangle, CheckCircle2, Clock, Ban, ChevronDown, LayoutList, Kanban, Pencil, Trash2, FolderOpen } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle2, Clock, Ban, ChevronDown, LayoutList, Kanban, Pencil, Trash2, FolderOpen, Download } from 'lucide-react';
+
+const PRIORITY_LABEL: Record<string, string> = { haute: '↑ Haute', normale: 'Normale', basse: '↓ Basse' };
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RichTextEditor from '../editor/RichTextEditor';
 import TaskModal from './TaskModal';
 import KanbanBoard from './KanbanBoard';
-import type { Task, TaskStatus } from '../../types';
+import type { Task, TaskStatus, TaskPriority } from '../../types';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import type { View } from '../../App';
@@ -48,6 +50,8 @@ export default function WorkstreamDetail({ workstreamId, setView }: Props) {
   const allTasks = tasks;
 
   const [filter, setFilter] = useState<TaskStatus | 'all'>('all');
+  const [filterPriority, setFilterPriority] = useState<TaskPriority | 'all'>('all');
+  const [filterAssignee, setFilterAssignee] = useState<string | 'all'>('all');
   const [selectedTask, setSelectedTask] = useState<Task | undefined>(undefined);
   const [showModal, setShowModal] = useState(false);
   const [defaultStatus, setDefaultStatus] = useState<TaskStatus>('todo');
@@ -62,7 +66,12 @@ export default function WorkstreamDetail({ workstreamId, setView }: Props) {
 
   if (!ws) return <p className="text-gray-500">Axe introuvable.</p>;
 
-  const filtered = filter === 'all' ? wsTasks : wsTasks.filter(t => t.status === filter);
+  const filtered = wsTasks.filter(t => {
+    if (filter !== 'all' && t.status !== filter) return false;
+    if (filterPriority !== 'all' && (t.priority ?? 'normale') !== filterPriority) return false;
+    if (filterAssignee !== 'all' && !t.assigneeIds.includes(filterAssignee)) return false;
+    return true;
+  });
 
   const openCreate = (status: TaskStatus = 'todo') => {
     setSelectedTask(undefined);
@@ -84,6 +93,27 @@ export default function WorkstreamDetail({ workstreamId, setView }: Props) {
   };
 
   const wsColor = COLOR_HEX[ws.color] ?? '#888';
+
+  const exportCSV = () => {
+    const headers = ['Titre', 'Statut', 'Priorité', 'Responsables', 'Date début', 'Date fin', 'Budget (€)'];
+    const rows = wsTasks.map(t => [
+      t.title,
+      STATUS_CONFIG[t.status].label,
+      PRIORITY_LABEL[t.priority ?? 'normale'],
+      t.assigneeIds.map(id => users.find(u => u.id === id)?.name ?? id).join(' / '),
+      t.startDate,
+      t.endDate,
+      String(t.budget || 0),
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `taches-${ws.name}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-5">
@@ -120,15 +150,21 @@ export default function WorkstreamDetail({ workstreamId, setView }: Props) {
             )}
           </div>
         </div>
-        {canEdit && (
-          <button
-            onClick={() => openCreate()}
-            className="flex items-center gap-2 bg-[#00c875] hover:bg-[#00b368] text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 shadow-sm min-h-[44px]"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Nouvelle tâche</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {wsTasks.length > 0 && (
+            <button onClick={exportCSV} title="Exporter CSV"
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              <Download className="w-4 h-4" />
+            </button>
+          )}
+          {canEdit && (
+            <button onClick={() => openCreate()}
+              className="flex items-center gap-2 bg-[#00c875] hover:bg-[#00b368] text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm min-h-[44px]">
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Nouvelle tâche</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Notes */}
@@ -160,19 +196,35 @@ export default function WorkstreamDetail({ workstreamId, setView }: Props) {
             <span className="text-xs font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{wsTasks.length}</span>
           </div>
 
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             {viewMode === 'table' && (
-              <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none">
-                {(['all', 'todo', 'inprogress', 'done', 'blocked'] as const).map(f => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${filter === f ? 'bg-[#00c875] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                  >
-                    {f === 'all' ? 'Toutes' : STATUS_CONFIG[f].label}
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none">
+                  {(['all', 'todo', 'inprogress', 'done', 'blocked'] as const).map(f => (
+                    <button key={f} onClick={() => setFilter(f)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${filter === f ? 'bg-[#00c875] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                      {f === 'all' ? 'Toutes' : STATUS_CONFIG[f].label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-1">
+                  {(['all', 'haute', 'normale', 'basse'] as const).map(p => (
+                    <button key={p} onClick={() => setFilterPriority(p)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${filterPriority === p ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                      {p === 'all' ? '·' : p === 'haute' ? '↑' : p === 'basse' ? '↓' : '—'}
+                    </button>
+                  ))}
+                </div>
+                {ws.assigneeIds && ws.assigneeIds.length > 0 && (
+                  <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-400">
+                    <option value="all">Tous</option>
+                    {users.filter(u => ws.assigneeIds?.includes(u.id)).map(u => (
+                      <option key={u.id} value={u.id}>{u.name.split(' ')[0]}</option>
+                    ))}
+                  </select>
+                )}
+              </>
             )}
 
             <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
@@ -204,12 +256,22 @@ export default function WorkstreamDetail({ workstreamId, setView }: Props) {
         ) : (
           <>
             {filtered.length === 0 ? (
-              <div className="bg-white rounded-xl border border-dashed border-gray-300 p-8 text-center shadow-sm">
-                <p className="text-gray-400">
-                  {filter !== 'all'
-                    ? `Aucune tâche avec le statut "${STATUS_CONFIG[filter as TaskStatus].label}"`
-                    : 'Aucune tâche — créez la première !'}
-                </p>
+              <div className="bg-white rounded-xl border border-dashed border-gray-300 p-10 text-center shadow-sm">
+                {filter !== 'all' || filterPriority !== 'all' || filterAssignee !== 'all' ? (
+                  <p className="text-gray-400 text-sm">Aucune tâche ne correspond aux filtres sélectionnés.</p>
+                ) : (
+                  <>
+                    <p className="text-gray-500 font-medium mb-1">Aucune tâche pour cet axe</p>
+                    <p className="text-gray-400 text-sm mb-4">Commencez par créer votre première tâche pour organiser le travail.</p>
+                    {canEdit && (
+                      <button onClick={() => openCreate()}
+                        className="inline-flex items-center gap-2 bg-[#00c875] hover:bg-[#00b368] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                        <Plus className="w-4 h-4" />
+                        Créer la première tâche
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
             ) : (
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">

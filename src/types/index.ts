@@ -15,6 +15,36 @@ export interface User {
 }
 
 export type TaskStatus = 'todo' | 'inprogress' | 'done' | 'blocked';
+export type TaskPriority = 'haute' | 'normale' | 'basse';
+
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export interface TaskHistoryEntry {
+  id: string;
+  userId: string;
+  label: string;
+  at: string;
+}
+
+export interface TaskComment {
+  id: string;
+  authorId: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface TaskAttachment {
+  id: string;
+  name: string;
+  data: string;
+  type: string;
+  size: number;
+  uploadedAt: string;
+}
 
 export interface Task {
   id: string;
@@ -24,11 +54,16 @@ export interface Task {
   notes?: string; // HTML — working notes visible to members only
   assigneeIds: string[];
   status: TaskStatus;
+  priority?: TaskPriority;
   startDate: string;
   endDate: string;
   budget: number;
   dependsOn: string[]; // task ids
   order: number;
+  checklist?: ChecklistItem[];
+  comments?: TaskComment[];
+  attachments?: TaskAttachment[];
+  history?: TaskHistoryEntry[];
   createdAt: string;
   updatedAt: string;
 }
@@ -133,6 +168,7 @@ export interface Project {
   id: string;
   name: string;
   subtitle: string;
+  logoUrl?: string;
   fonctions: string[];
   groqKey?: string;   // set once by superadmin, shared with all users via Firebase
   groqModel?: string; // default: llama-3.1-8b-instant

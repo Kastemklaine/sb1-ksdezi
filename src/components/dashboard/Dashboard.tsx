@@ -1,6 +1,7 @@
-import { Megaphone, Settings, Heart, BookOpen, MapPin, Flower2, Building2, Users, TrendingUp, ArrowRight, Car, Trash2, Bike, TreePine, Accessibility } from 'lucide-react';
+import { Megaphone, Settings, Heart, BookOpen, MapPin, Flower2, Building2, Users, TrendingUp, ArrowRight, Car, Trash2, Bike, TreePine, Accessibility, AlertCircle, Clock, Flag } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import type { View } from '../../App';
+import { parseISO, differenceInDays } from 'date-fns';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Megaphone, Settings, Heart, BookOpen, MapPin, Flower2, Building2, Users, Car, Trash2, Bike, TreePine, Accessibility,
@@ -33,6 +34,13 @@ export default function Dashboard({ setView }: Props) {
   const totalBudget = tasks.reduce((acc, t) => acc + (t.budget || 0), 0);
   const progressPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
+  const today = new Date();
+  const lateTasks = tasks.filter(t => t.endDate && t.status !== 'done' && differenceInDays(today, parseISO(t.endDate)) > 0);
+  const upcoming = tasks
+    .filter(t => t.endDate && t.status !== 'done' && differenceInDays(parseISO(t.endDate), today) >= 0 && differenceInDays(parseISO(t.endDate), today) <= 7)
+    .sort((a, b) => a.endDate.localeCompare(b.endDate));
+  const highPriorityTasks = tasks.filter(t => t.priority === 'haute' && t.status !== 'done');
+
   return (
     <div className="space-y-7">
       {/* Page title */}
@@ -42,35 +50,12 @@ export default function Dashboard({ setView }: Props) {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard
-          label="Tâches totales"
-          value={totalTasks}
-          sub="dans le projet"
-          accentColor="#6366f1"
-          lightBg="#eef2ff"
-        />
-        <KpiCard
-          label="En cours"
-          value={inProgressTasks}
-          sub="tâches actives"
-          accentColor="#3b82f6"
-          lightBg="#eff6ff"
-        />
-        <KpiCard
-          label="Terminées"
-          value={doneTasks}
-          sub={`${progressPct}% complété`}
-          accentColor="#00c875"
-          lightBg="#f0fdf4"
-        />
-        <KpiCard
-          label="Bloquées"
-          value={blockedTasks}
-          sub="nécessitent attention"
-          accentColor="#ef4444"
-          lightBg="#fff1f2"
-        />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <KpiCard label="Tâches totales" value={totalTasks} sub="dans le projet" accentColor="#6366f1" lightBg="#eef2ff" />
+        <KpiCard label="En cours" value={inProgressTasks} sub="tâches actives" accentColor="#3b82f6" lightBg="#eff6ff" />
+        <KpiCard label="Terminées" value={doneTasks} sub={`${progressPct}% complété`} accentColor="#00c875" lightBg="#f0fdf4" />
+        <KpiCard label="Bloquées" value={blockedTasks} sub="nécessitent attention" accentColor="#ef4444" lightBg="#fff1f2" />
+        <KpiCard label="En retard" value={lateTasks.length} sub={lateTasks.length === 0 ? 'aucun retard' : 'à traiter'} accentColor={lateTasks.length > 0 ? '#f97316' : '#6b7280'} lightBg={lateTasks.length > 0 ? '#fff7ed' : '#f9fafb'} />
       </div>
 
       {/* Global progress bar */}
@@ -95,6 +80,75 @@ export default function Dashboard({ setView }: Props) {
             <span><span className="font-semibold text-gray-700">{blockedTasks}</span> bloquées</span>
             {totalBudget > 0 && <span>Budget: <span className="font-semibold text-gray-700">{totalBudget.toLocaleString('fr-FR')} €</span></span>}
           </div>
+        </div>
+      )}
+
+      {/* Alert rows */}
+      {(lateTasks.length > 0 || upcoming.length > 0 || highPriorityTasks.length > 0) && (
+        <div className="grid md:grid-cols-3 gap-4">
+          {lateTasks.length > 0 && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertCircle className="w-4 h-4 text-orange-600" />
+                <h3 className="text-sm font-semibold text-orange-800">En retard ({lateTasks.length})</h3>
+              </div>
+              <div className="space-y-1.5">
+                {lateTasks.slice(0, 4).map(t => {
+                  const ws = workstreams.find(w => w.id === t.workstreamId);
+                  return (
+                    <button key={t.id} onClick={() => setView({ type: 'workstream', id: t.workstreamId })}
+                      className="w-full text-left flex items-center gap-2 text-xs text-orange-700 hover:text-orange-900 transition-colors">
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                      <span className="truncate flex-1">{t.title}</span>
+                      <span className="text-orange-400 shrink-0">{ws?.name.split(' ')[0]}</span>
+                    </button>
+                  );
+                })}
+                {lateTasks.length > 4 && <p className="text-xs text-orange-400">+{lateTasks.length - 4} autres</p>}
+              </div>
+            </div>
+          )}
+
+          {upcoming.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="w-4 h-4 text-blue-600" />
+                <h3 className="text-sm font-semibold text-blue-800">Échéances proches (7j)</h3>
+              </div>
+              <div className="space-y-1.5">
+                {upcoming.slice(0, 4).map(t => {
+                  const days = differenceInDays(parseISO(t.endDate), today);
+                  return (
+                    <button key={t.id} onClick={() => setView({ type: 'workstream', id: t.workstreamId })}
+                      className="w-full text-left flex items-center gap-2 text-xs text-blue-700 hover:text-blue-900 transition-colors">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                      <span className="truncate flex-1">{t.title}</span>
+                      <span className="text-blue-400 shrink-0">{days === 0 ? 'auj.' : `J-${days}`}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {highPriorityTasks.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Flag className="w-4 h-4 text-red-600" />
+                <h3 className="text-sm font-semibold text-red-800">Priorité haute ({highPriorityTasks.length})</h3>
+              </div>
+              <div className="space-y-1.5">
+                {highPriorityTasks.slice(0, 4).map(t => (
+                  <button key={t.id} onClick={() => setView({ type: 'workstream', id: t.workstreamId })}
+                    className="w-full text-left flex items-center gap-2 text-xs text-red-700 hover:text-red-900 transition-colors">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                    <span className="truncate">{t.title}</span>
+                  </button>
+                ))}
+                {highPriorityTasks.length > 4 && <p className="text-xs text-red-400">+{highPriorityTasks.length - 4} autres</p>}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -1,7 +1,13 @@
-import { Plus, Clock, CheckCircle2, Ban, AlertTriangle } from 'lucide-react';
+import { Plus, Clock, CheckCircle2, Ban, AlertTriangle, MessageSquare, Paperclip } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Task, TaskStatus } from '../../types';
+
+const PRIORITY_BADGE: Record<string, string> = {
+  haute: 'bg-red-100 text-red-700',
+  normale: 'bg-blue-100 text-blue-700',
+  basse: 'bg-gray-100 text-gray-500',
+};
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -106,7 +112,14 @@ export default function KanbanBoard({ workstreamId: _workstreamId, tasks, onOpen
                     onClick={() => onOpenTask(task)}
                     className={`w-full text-left bg-white rounded-lg border-l-4 border border-gray-200 p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all ${col.cardBorder}`}
                   >
-                    <p className="text-sm font-medium text-gray-900 leading-snug mb-2">{task.title}</p>
+                    <div className="flex items-start justify-between gap-1 mb-1.5">
+                      <p className="text-sm font-medium text-gray-900 leading-snug">{task.title}</p>
+                      {task.priority && task.priority !== 'normale' && (
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${PRIORITY_BADGE[task.priority]}`}>
+                          {task.priority === 'haute' ? '↑ Haute' : '↓ Basse'}
+                        </span>
+                      )}
+                    </div>
 
                     {blocked && task.status !== 'done' && (
                       <div className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full w-fit mb-2">
@@ -140,6 +153,12 @@ export default function KanbanBoard({ workstreamId: _workstreamId, tasks, onOpen
                         )}
                         {task.budget > 0 && (
                           <span className="font-medium text-gray-500">{task.budget.toLocaleString('fr-FR')} €</span>
+                        )}
+                        {(task.comments?.length ?? 0) > 0 && (
+                          <span className="flex items-center gap-0.5"><MessageSquare className="w-3 h-3" />{task.comments!.length}</span>
+                        )}
+                        {(task.attachments?.length ?? 0) > 0 && (
+                          <span className="flex items-center gap-0.5"><Paperclip className="w-3 h-3" />{task.attachments!.length}</span>
                         )}
                       </div>
                     </div>
