@@ -7,7 +7,8 @@ export interface User {
   lastName?: string;
   email: string;
   role: Role;
-  fonction?: string;
+  fonction?: string; // e.g. "Adjoint(e)", "Directeur/Directrice"
+  avatarUrl?: string; // base64 data URL for profile photo
   workstreamIds: string[];
   createdAt: string;
   twoFactorEnabled: boolean;
@@ -40,7 +41,7 @@ export interface TaskComment {
 export interface TaskAttachment {
   id: string;
   name: string;
-  data: string; // base64 data URL
+  data: string;
   type: string;
   size: number;
   uploadedAt: string;
@@ -147,7 +148,6 @@ export interface GovernanceInstance {
   description: string;
   memberIds: string[];
   workstreamIds: string[];
-  order?: number;
 }
 
 export interface FinalPage {
@@ -165,27 +165,14 @@ export interface IADocument {
   updatedAt: string;
 }
 
-export type NotificationType = 'task_assigned' | 'task_comment' | 'message' | 'task_due';
-
-export interface AppNotification {
-  id: string;
-  userId: string;
-  type: NotificationType;
-  title: string;
-  body: string;
-  link?: string;
-  read: boolean;
-  createdAt: string;
-}
-
 export interface Project {
   id: string;
   name: string;
   subtitle: string;
   logoUrl?: string;
   fonctions: string[];
-  groqKey?: string;
-  groqModel?: string;
+  groqKey?: string;   // set once by superadmin, shared with all users via Firebase
+  groqModel?: string; // default: llama-3.1-8b-instant
   workstreams: Workstream[];
   tasks: Task[];
   governance: GovernanceInstance[];

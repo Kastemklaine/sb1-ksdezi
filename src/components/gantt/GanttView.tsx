@@ -1,9 +1,20 @@
 import { useState } from 'react';
-import { CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarRange, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
-import { parseISO, format, startOfMonth, addMonths, subMonths, differenceInDays } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import type { View } from '../../App';
+import { addMonths, format, startOfMonth, endOfMonth, eachDayOfInterval, differenceInDays, parseISO, isWithinInterval } from 'date-fns';
+import { fr } from 'date-fns/locale';
+
+interface Props {
+  setView: (v: View) => void;
+}
+
+const STATUS_OPACITY: Record<string, number> = {
+  done: 1,
+  inprogress: 0.85,
+  todo: 0.55,
+  blocked: 0.7,
+};
 
 const COLOR_HEX: Record<string, string> = {
   'bg-yellow-400': '#facc15',
@@ -14,167 +25,136 @@ const COLOR_HEX: Record<string, string> = {
   'bg-purple-600': '#9333ea',
   'bg-indigo-600': '#4f46e5',
   'bg-cyan-500': '#06b6d4',
-  'bg-orange-500': '#f97316',
-  'bg-emerald-600': '#059669',
-  'bg-blue-600': '#2563eb',
-  'bg-gray-500': '#6b7280',
 };
-
-const STATUS_OPACITY: Record<string, number> = {
-  done: 1,
-  inprogress: 0.85,
-  todo: 0.55,
-  blocked: 0.7,
-};
-
-interface Props {
-  setView: (v: View) => void;
-}
 
 export default function GanttView({ setView }: Props) {
+  const [monthOffset, setMonthOffset] = useState(0);
   const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
   const tasks = useProjectStore(s => curProject(s)?.tasks ?? []);
 
-  const [viewStart, setViewStart] = useState(() => startOfMonth(new Date()));
-  const MONTHS = 3;
-  const viewEnd = addMonths(viewStart, MONTHS);
-  const totalDays = differenceInDays(viewEnd, viewStart) || 1;
-  const months = Array.from({ length: MONTHS }, (_, i) => addMonths(viewStart, i));
+  const baseMonth = addMonths(new Date(), monthOffset);
+  const monthStart = startOfMonth(baseMonth);
+  const monthEnd = endOfMonth(addMonths(baseMonth, 2));
+  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const totalDays = days.length;
 
-  const tasksWithDates = tasks.filter(t => t.startDate || t.endDate);
-
-  const getBar = (task: typeof tasks[0]) => {
-    const start = task.startDate ? parseISO(task.startDate) : null;
-    const end = task.endDate ? parseISO(task.endDate) : null;
-    if (!start && !end) return null;
-    const barStart = start ?? end!;
-    const barEnd = end ?? start!;
-    const leftPct = (differenceInDays(barStart, viewStart) / totalDays) * 100;
-    const rightPct = (differenceInDays(barEnd, viewStart) / totalDays) * 100;
-    if (rightPct < 0 || leftPct > 100) return null;
-    return {
-      left: `${Math.max(0, leftPct)}%`,
-      width: `${Math.max(0.8, Math.min(100, rightPct) - Math.max(0, leftPct))}%`,
-    };
+  const getLeft = (date: string) => {
+    const d = parseISO(date);
+    const diff = differenceInDays(d, monthStart);
+    return Math.max(0, (diff / totalDays) * 100);
   };
 
-  const fmtShort = (d: string) => { try { return format(parseISO(d), 'd MMM', { locale: fr }); } catch { return d; } };
+  const getWidth = (start: string, end: string) => {
+    const s = parseISO(start);
+    const e = parseISO(end);
+    const clampedS = s < monthStart ? monthStart : s;
+    const clampedE = e > monthEnd ? monthEnd : e;
+    const width = (differenceInDays(clampedE, clampedS) + 1) / totalDays * 100;
+    return Math.max(0.5, width);
+  };
+
+  const isInRange = (start: string, end: string) => {
+    const s = parseISO(start);
+    const e = parseISO(end);
+    return isWithinInterval(monthStart, { start: s, end: e }) ||
+      isWithinInterval(monthEnd, { start: s, end: e }) ||
+      (s >= monthStart && s <= monthEnd) ||
+      (e >= monthStart && e <= monthEnd);
+  };
+
+  // Month markers
+  const months: { label: string; left: number }[] = [];
+  for (let i = 0; i <= 2; i++) {
+    const m = addMonths(monthStart, i);
+    const left = (differenceInDays(startOfMonth(m), monthStart) / totalDays) * 100;
+    months.push({ label: format(m, 'MMMM yyyy', { locale: fr }), left });
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-100 p-2 rounded-lg">
-            <CalendarRange className="w-5 h-5 text-blue-700" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Planning</h1>
-            <p className="text-gray-500 mt-0.5 text-sm">Vue chronologique Gantt des tâches</p>
-          </div>
+      <div className="flex items-center gap-3 flex-wrap">
+        <button onClick={() => setView({ type: 'diagrams' })} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+          <ArrowLeft className="w-4 h-4 text-gray-600" />
+        </button>
+        <div className="bg-blue-100 p-2 rounded-lg">
+          <CalendarRange className="w-5 h-5 text-blue-700" />
         </div>
-        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
-          <button onClick={() => setViewStart(d => subMonths(d, 1))}
-            className="p-1.5 hover:bg-gray-100 rounded-md transition-colors">
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Planning Gantt</h1>
+          <p className="text-gray-500 text-sm mt-0.5">Vue chronologique des tâches</p>
+        </div>
+        <div className="ml-auto flex items-center gap-1">
+          <button onClick={() => setMonthOffset(o => o - 1)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="text-sm font-medium text-gray-700 px-2 min-w-[180px] text-center capitalize">
-            {format(viewStart, 'MMM yyyy', { locale: fr })} — {format(addMonths(viewStart, MONTHS - 1), 'MMM yyyy', { locale: fr })}
+          <span className="text-sm font-medium text-gray-700 px-2 min-w-[120px] text-center capitalize">
+            {format(monthStart, 'MMMM yyyy', { locale: fr })}
           </span>
-          <button onClick={() => setViewStart(d => addMonths(d, 1))}
-            className="p-1.5 hover:bg-gray-100 rounded-md transition-colors">
-            <ChevronRight className="w-4 h-4 text-gray-600" />
+          <button onClick={() => setMonthOffset(o => o + 1)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-        {/* Header */}
-        <div className="flex border-b border-gray-200 bg-gray-50">
-          <div className="w-44 md:w-56 shrink-0 px-4 py-2.5 border-r border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            Tâche
-          </div>
-          <div className="flex-1 flex">
-            {months.map((month, i) => (
-              <div key={i} className={`flex-1 px-2 py-2.5 text-xs font-semibold text-gray-600 text-center capitalize ${i > 0 ? 'border-l border-gray-200' : ''}`}>
-                {format(month, 'MMMM yyyy', { locale: fr })}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-auto shadow-sm">
+        {/* Month headers */}
+        <div className="flex border-b border-gray-100 bg-gray-50">
+          <div className="w-48 shrink-0 px-3 py-2 border-r border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">Axe / Tâche</div>
+          <div className="flex-1 relative h-8 min-w-[500px]">
+            {months.map(m => (
+              <div key={m.label} className="absolute top-0 h-full flex items-center px-2 text-xs font-medium text-gray-600 capitalize border-r border-gray-200" style={{ left: `${m.left}%` }}>
+                {m.label}
               </div>
             ))}
           </div>
         </div>
 
+        {/* Rows */}
         {workstreams.map(ws => {
-          const wsTasks = tasksWithDates.filter(t => t.workstreamId === ws.id);
-          if (wsTasks.length === 0) return null;
-          const hex = COLOR_HEX[ws.color] ?? '#888';
-
+          const wsTasks = tasks.filter(t => t.workstreamId === ws.id && isInRange(t.startDate, t.endDate));
+          const color = COLOR_HEX[ws.color] ?? '#888';
           return (
             <div key={ws.id}>
-              {/* Workstream row */}
-              <div className="flex items-center border-b border-gray-100 bg-gray-50/50">
-                <div className="w-44 md:w-56 shrink-0 px-4 py-2 flex items-center gap-2 border-r border-gray-100">
-                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: hex }} />
-                  <span className="text-xs font-bold text-gray-600 truncate">{ws.name}</span>
+              {/* Workstream header */}
+              <div className="flex items-center border-b border-gray-100 bg-gray-50/70">
+                <div className="w-48 shrink-0 px-3 py-2 flex items-center gap-2 border-r border-gray-200">
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <span className="text-xs font-semibold text-gray-700 truncate">{ws.name}</span>
                 </div>
-                <div className="flex-1 h-7 relative">
-                  {months.slice(1).map((_, i) => (
-                    <div key={i} className="absolute top-0 bottom-0 border-l border-gray-100" style={{ left: `${((i + 1) / MONTHS) * 100}%` }} />
-                  ))}
-                </div>
+                <div className="flex-1 min-w-[500px] h-7" />
               </div>
-
-              {/* Task rows */}
-              {wsTasks.map(task => {
-                const bar = getBar(task);
-                const isDone = task.status === 'done';
-                return (
-                  <div key={task.id} className="flex items-center border-b border-gray-50 hover:bg-blue-50/20 transition-colors group">
-                    <div className="w-44 md:w-56 shrink-0 px-4 py-2 border-r border-gray-50">
-                      <button onClick={() => setView({ type: 'workstream', id: ws.id })}
-                        className="text-xs text-left truncate w-full text-gray-600 group-hover:text-blue-600 transition-colors">
-                        {isDone && <span className="text-green-500 mr-1">✓</span>}
-                        {task.title}
-                      </button>
-                    </div>
-                    <div className="flex-1 h-8 relative px-1">
-                      {months.slice(1).map((_, i) => (
-                        <div key={i} className="absolute top-0 bottom-0 border-l border-gray-100" style={{ left: `${((i + 1) / MONTHS) * 100}%` }} />
-                      ))}
-                      {bar && (
-                        <div
-                          className="absolute top-1.5 bottom-1.5 rounded-full cursor-pointer hover:brightness-90 transition-all flex items-center px-1.5 overflow-hidden"
-                          style={{ ...bar, backgroundColor: hex, opacity: STATUS_OPACITY[task.status] ?? 0.7 }}
-                          onClick={() => setView({ type: 'workstream', id: ws.id })}
-                          title={`${task.title} — ${task.startDate ? fmtShort(task.startDate) : '?'} → ${task.endDate ? fmtShort(task.endDate) : '?'}`}
-                        >
-                          <span className="text-[10px] text-white font-medium truncate leading-none opacity-90">{task.title}</span>
-                        </div>
-                      )}
-                    </div>
+              {/* Task bars */}
+              {wsTasks.map(task => (
+                <div key={task.id} className="flex items-center border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                  <div className="w-48 shrink-0 px-4 py-1.5 border-r border-gray-100">
+                    <p className="text-xs text-gray-600 truncate">{task.title}</p>
                   </div>
-                );
-              })}
+                  <div className="flex-1 relative h-7 min-w-[500px]">
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 h-4 rounded-full flex items-center px-2"
+                      style={{
+                        left: `${getLeft(task.startDate)}%`,
+                        width: `${getWidth(task.startDate, task.endDate)}%`,
+                        backgroundColor: color,
+                        opacity: STATUS_OPACITY[task.status] ?? 0.7,
+                      }}
+                      title={`${task.title} — ${task.status}`}
+                    />
+                  </div>
+                </div>
+              ))}
+              {wsTasks.length === 0 && (
+                <div className="flex items-center border-b border-gray-50">
+                  <div className="w-48 shrink-0 px-4 py-1.5 border-r border-gray-100">
+                    <p className="text-xs text-gray-300 italic">Aucune tâche visible</p>
+                  </div>
+                  <div className="flex-1 min-w-[500px] h-7" />
+                </div>
+              )}
             </div>
           );
         })}
-
-        {tasksWithDates.length === 0 && (
-          <div className="text-center py-16 text-gray-400">
-            <CalendarRange className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p className="text-sm font-medium">Aucune tâche avec des dates</p>
-            <p className="text-xs mt-1 text-gray-300">Ajoutez des dates de début et fin à vos tâches pour les voir ici.</p>
-          </div>
-        )}
       </div>
-
-      {/* Legend */}
-      {tasksWithDates.length > 0 && (
-        <div className="flex flex-wrap gap-4 text-xs text-gray-400 px-1">
-          <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 rounded-full bg-green-500 inline-block" />Terminé</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 rounded-full bg-blue-500 inline-block opacity-85" />En cours</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 rounded-full bg-gray-400 inline-block opacity-55" />À faire</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 rounded-full bg-red-400 inline-block opacity-70" />Bloqué</span>
-        </div>
-      )}
     </div>
   );
 }
