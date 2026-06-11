@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, AlertTriangle, FileText, ClipboardList, CheckSquare, MessageSquare, Paperclip, Trash2, Download, Plus, Clock } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useNotificationStore } from '../../store/useNotificationStore';
 import RichTextEditor from '../editor/RichTextEditor';
 import type { Task, TaskStatus, TaskPriority, TaskAttachment } from '../../types';
 import { format, parseISO } from 'date-fns';
@@ -45,6 +46,7 @@ export default function TaskModal({ workstreamId, task, defaultStatus, onClose }
   const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
   const users = useAuthStore(s => s.users);
   const currentUser = useAuthStore(s => s.currentUser);
+  const addNotification = useNotificationStore(s => s.addNotification);
 
   // Refresh task from store
   const liveTask = task ? tasks.find(t => t.id === task.id) ?? task : task;
@@ -108,9 +110,15 @@ export default function TaskModal({ workstreamId, task, defaultStatus, onClose }
       order: task?.order ?? Date.now(),
     };
     if (task) {
+      const prevIds = task.assigneeIds ?? [];
+      const newlyAssigned = assigneeIds.filter(id => !prevIds.includes(id) && id !== currentUser?.id);
+      newlyAssigned.forEach(uid => addNotification(uid, 'task_assigned', 'Tâche assignée', `Vous avez été ajouté(e) à "${title.trim()}"`, workstreamId));
       updateTask(task.id, data);
     } else {
       createTask(data);
+      assigneeIds.filter(id => id !== currentUser?.id).forEach(uid =>
+        addNotification(uid, 'task_assigned', 'Nouvelle tâche', `Assigné(e) à "${title.trim()}"`, workstreamId)
+      );
     }
     onClose();
   };
@@ -131,6 +139,10 @@ export default function TaskModal({ workstreamId, task, defaultStatus, onClose }
   const handlePostComment = () => {
     if (!commentText.trim() || !task || !currentUser) return;
     addTaskComment(task.id, currentUser.id, commentText.trim());
+    // Notify assignees about the new comment
+    (liveTask?.assigneeIds ?? []).filter(id => id !== currentUser.id).forEach(uid =>
+      addNotification(uid, 'task_comment', 'Nouveau commentaire', `"${task.title}" : ${commentText.trim().slice(0, 60)}`, workstreamId)
+    );
     setCommentText('');
   };
 

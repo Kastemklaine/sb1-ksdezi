@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
+import { useNotificationStore } from '../../store/useNotificationStore';
 import type { MessageAttachment } from '../../types';
 import { MessageSquare, Plus, X, Send, Paperclip, FileText, ArrowLeft, Loader2, Lock } from 'lucide-react';
 import RichTextEditor from '../editor/RichTextEditor';
@@ -15,6 +16,7 @@ export default function MessagingView() {
   const users = useAuthStore(s => s.users);
   const messages = useProjectStore(s => (curProject(s)?.messages ?? []).slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
   const { sendMessage, markMessageRead, deleteMessage } = useProjectStore();
+  const addNotification = useNotificationStore(s => s.addNotification);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showCompose, setShowCompose] = useState(false);
@@ -73,6 +75,11 @@ export default function MessagingView() {
     setSending(true);
     const encryptedBody = await encryptText(body);
     sendMessage({ fromId: currentUser.id, fromName: currentUser.name, toId: toId || null, subject: subject.trim(), body: encryptedBody, attachments });
+    // Notify recipient(s)
+    const recipients = toId ? [toId] : users.filter(u => u.id !== currentUser.id).map(u => u.id);
+    recipients.forEach(uid => {
+      addNotification(uid, 'message', `Message de ${currentUser.name}`, subject.trim());
+    });
     setShowCompose(false);
     setToId(''); setSubject(''); setBody(''); setAttachments([]);
     setSending(false);

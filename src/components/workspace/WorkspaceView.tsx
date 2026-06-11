@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, X, FileText, MessageSquare, Send, ChevronDown, ChevronRight, FolderPlus, ArrowLeft, GitBranch, Network, BrainCircuit, Square } from 'lucide-react';
+import { Plus, Trash2, X, FileText, MessageSquare, Send, ChevronDown, ChevronRight, FolderPlus, ArrowLeft, GitBranch, Network, BrainCircuit, Square, Download } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RichTextEditor from '../editor/RichTextEditor';
@@ -498,14 +498,24 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
                               {doc.type === 'diagram' ? '🔷 Schéma — ' : ''}Par {getUserName(doc.authorId)} — {new Date(doc.updatedAt).toLocaleDateString('fr-FR')}
                             </p>
                           </div>
-                          {isAdmin && (
-                            <button
-                              onClick={() => deleteDocument(doc.id)}
-                              className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center"
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                            <a
+                              href={`data:text/html;charset=utf-8,${encodeURIComponent(doc.content)}`}
+                              download={`${doc.title}.html`}
+                              onClick={e => e.stopPropagation()}
+                              className="p-1 text-gray-400 hover:text-blue-500 touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center"
                             >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          )}
+                              <Download className="w-3 h-3" />
+                            </a>
+                            {isAdmin && (
+                              <button
+                                onClick={() => deleteDocument(doc.id)}
+                                className="p-1 text-gray-400 hover:text-red-500 touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))
                     )}
@@ -606,11 +616,17 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
                   </button>
                   <p className="text-xs text-gray-400 mt-0.5">{new Date(doc.updatedAt).toLocaleDateString('fr-FR')}</p>
                 </div>
-                {isMember && (
-                  <button onClick={() => deleteDocument(doc.id)} className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center">
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                )}
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                  <a href={`data:text/html;charset=utf-8,${encodeURIComponent(doc.content)}`} download={`${doc.title}.html`}
+                    onClick={e => e.stopPropagation()} className="p-1 text-gray-400 hover:text-blue-500 touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center">
+                    <Download className="w-3 h-3" />
+                  </a>
+                  {isMember && (
+                    <button onClick={() => deleteDocument(doc.id)} className="p-1 text-gray-400 hover:text-red-500 touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
             {/* Documents grouped by sub-section */}
@@ -636,11 +652,17 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
                           <button onClick={() => openExistingDoc(doc)} className="flex-1 text-left text-sm text-gray-800 hover:text-green-700 font-medium touch-manipulation">
                             {doc.title}
                           </button>
-                          {isMember && (
-                            <button onClick={() => deleteDocument(doc.id)} className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center">
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          )}
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                            <a href={`data:text/html;charset=utf-8,${encodeURIComponent(doc.content)}`} download={`${doc.title}.html`}
+                              onClick={e => e.stopPropagation()} className="p-1 text-gray-400 hover:text-blue-500 touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center">
+                              <Download className="w-3 h-3" />
+                            </a>
+                            {isMember && (
+                              <button onClick={() => deleteDocument(doc.id)} className="p-1 text-gray-400 hover:text-red-500 touch-manipulation min-w-[32px] min-h-[32px] flex items-center justify-center">
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

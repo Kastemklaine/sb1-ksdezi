@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Users, FileText, Network, LogOut, Menu, X,
-  ChevronDown, ChevronRight, Settings, MessageSquare, Calendar, FolderKanban, ShieldCheck, FolderOpen, GitBranch, Bot, CalendarRange
+  ChevronDown, ChevronRight, Settings, MessageSquare, Calendar, FolderKanban, ShieldCheck, FolderOpen, GitBranch, Bot, CalendarRange, Search
 } from 'lucide-react';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -10,6 +10,8 @@ import type { View } from '../../App';
 import TwoFactorSetup from '../profile/TwoFactorSetup';
 import MyProfileModal from '../profile/MyProfileModal';
 import QuimperleLogoK from '../ui/QuimperleLogoK';
+import NotificationBell from '../notifications/NotificationBell';
+import SearchModal from '../search/SearchModal';
 
 interface Props {
   view: View;
@@ -55,6 +57,15 @@ export default function Layout({ view, setView, children }: Props) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
   const [showMyProfile, setShowMyProfile] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setShowSearch(true); }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   const navigateTo = (v: View) => {
     setView(v);
@@ -110,7 +121,7 @@ export default function Layout({ view, setView, children }: Props) {
     if (view.type === 'workspaces') return 'Espaces de travail';
     if (view.type === 'workspace') return 'Espace de travail';
     if (view.type === 'final-document') return 'Dossier final';
-    if (view.type === 'diagrams') return 'Schémas';
+    if (view.type === 'diagrams') return 'Diagrammes';
     if (view.type === 'ia') return 'Assistant IA';
     if (view.type === 'gantt') return 'Planning';
     return '';
@@ -191,7 +202,7 @@ export default function Layout({ view, setView, children }: Props) {
           {navItem('Espaces de travail', FolderOpen, { type: 'workspaces' })}
           {navItem('Dossier final', FileText, { type: 'final-document' })}
           {navItem('Planning', CalendarRange, { type: 'gantt' })}
-          {navItem('Schémas', GitBranch, { type: 'diagrams' })}
+          {navItem('Diagrammes', GitBranch, { type: 'diagrams' })}
           {navItem('Assistant IA', Bot, { type: 'ia' })}
           {currentUser?.role === 'superadmin' && navItem('Utilisateurs', Users, { type: 'users' })}
           {currentUser?.role === 'superadmin' && navItem('Paramètres', Settings, { type: 'settings' })}
@@ -328,6 +339,13 @@ export default function Layout({ view, setView, children }: Props) {
           </div>
 
           <div className="flex items-center gap-2">
+            <button onClick={() => setShowSearch(true)} title="Rechercher (Cmd+K)"
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-lg text-sm transition-colors min-h-[36px]">
+              <Search className="w-4 h-4" />
+              <span className="hidden lg:inline text-xs text-gray-400">Rechercher...</span>
+              <span className="hidden lg:inline text-xs text-gray-300 bg-white border border-gray-200 px-1.5 py-0.5 rounded">⌘K</span>
+            </button>
+            <NotificationBell setView={setView} />
             {/* User avatar menu */}
             <div className="relative">
               <button
@@ -423,6 +441,7 @@ export default function Layout({ view, setView, children }: Props) {
 
       {show2FA && <TwoFactorSetup onClose={() => setShow2FA(false)} />}
       {showMyProfile && <MyProfileModal onClose={() => setShowMyProfile(false)} />}
+      {showSearch && <SearchModal onClose={() => setShowSearch(false)} setView={setView} />}
     </div>
   );
 }
