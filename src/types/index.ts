@@ -165,6 +165,19 @@ export interface IADocument {
   updatedAt: string;
 }
 
+export type NotificationType = 'task_assigned' | 'task_comment' | 'message' | 'task_due';
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  link?: string;
+  read: boolean;
+  createdAt: string;
+}
+
 export interface Project {
   id: string;
   name: string;
