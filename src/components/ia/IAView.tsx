@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Bot, Send, Plus, Trash2, BookOpen, MessageSquare,
-  Pencil, Check, X, Lock, FileText, ChevronDown, Loader2, Settings2, Upload, Image as ImageIcon, Database, Search, Globe
+  Pencil, Check, X, Lock, FileText, ChevronDown, Loader2, Settings2, Upload, Image as ImageIcon, Globe
 } from 'lucide-react';
 import * as pdfjs from 'pdfjs-dist';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -11,6 +11,7 @@ import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { IADocument } from '../../types';
 import { encryptText, decryptText } from '../../lib/crypto';
+import DataSourcesPanel from './DataSourcesPanel';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -130,26 +131,6 @@ function csvToText(raw: string, filename: string): string {
   return `Fichier : ${filename}\nColonnes (${headers.length}) : ${headers.join(', ')}\nNombre de lignes : ${rows.length}\n\n${lines.join('\n')}${footer}`;
 }
 
-interface DataGouvDataset {
-  id: string;
-  title: string;
-  description: string;
-  organization?: { name: string };
-  resources: { id: string; title: string; url: string; format: string; filesize?: number }[];
-  tags: string[];
-  page: string;
-}
-
-async function searchDataGouv(query: string): Promise<DataGouvDataset[]> {
-  const res = await fetch(
-    `https://www.data.gouv.fr/api/1/datasets/?q=${encodeURIComponent(query)}&page_size=8&sort=-created`,
-    { headers: { 'X-Fields': 'data{id,title,description,organization,resources,tags,page}' } }
-  );
-  if (!res.ok) throw new Error(`data.gouv.fr: ${res.status}`);
-  const json = await res.json();
-  return (json.data ?? []) as DataGouvDataset[];
-}
-
 export default function IAView() {
   const { conversations, createConversation, addMessage, deleteConversation, renameConversation } = useIAStore();
   const documents = useProjectStore(s => curProject(s)?.iaDocuments ?? []);
@@ -189,12 +170,8 @@ export default function IAView() {
   const [uploadLoading, setUploadLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // data.gouv.fr search
+  // External data sources panel
   const [showDataGouv, setShowDataGouv] = useState(false);
-  const [dataGouvQuery, setDataGouvQuery] = useState('');
-  const [dataGouvResults, setDataGouvResults] = useState<DataGouvDataset[]>([]);
-  const [dataGouvLoading, setDataGouvLoading] = useState(false);
-  const [importingId, setImportingId] = useState<string | null>(null);
 
   const activeConv = conversations.find(c => c.id === activeConvId) ?? null;
 
@@ -279,49 +256,6 @@ export default function IAView() {
     setGroqKey(key);
     setGroqModel(model);
     setShowConfig(false);
-  };
-
-  const handleDataGouvSearch = async () => {
-    if (!dataGouvQuery.trim()) return;
-    setDataGouvLoading(true);
-    setDataGouvResults([]);
-    try {
-      const results = await searchDataGouv(dataGouvQuery.trim());
-      setDataGouvResults(results);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setDataGouvLoading(false);
-    }
-  };
-
-  const handleImportDataset = async (dataset: DataGouvDataset) => {
-    setImportingId(dataset.id);
-    try {
-      const csvResource = dataset.resources.find(r =>
-        r.format?.toLowerCase() === 'csv' || r.url?.endsWith('.csv')
-      );
-
-      let content = `Source : data.gouv.fr\nURL : ${dataset.page}\nOrganisation : ${dataset.organization?.name ?? 'Non précisée'}\nMots-clés : ${dataset.tags.join(', ')}\n\nDescription :\n${dataset.description ?? ''}`;
-
-      if (csvResource) {
-        try {
-          const csvRes = await fetch(csvResource.url);
-          if (csvRes.ok) {
-            const rawCsv = await csvRes.text();
-            content += `\n\nDonnées CSV (${csvResource.title}) :\n${csvToText(rawCsv, csvResource.title ?? dataset.title)}`;
-          }
-        } catch {
-          content += `\n\nRessources disponibles :\n${dataset.resources.map(r => `- ${r.title} (${r.format?.toUpperCase() ?? '?'})`).join('\n')}`;
-        }
-      } else {
-        content += `\n\nRessources disponibles :\n${dataset.resources.map(r => `- ${r.title} (${r.format?.toUpperCase() ?? '?'})`).join('\n')}`;
-      }
-
-      addDocument({ title: dataset.title, content });
-    } finally {
-      setImportingId(null);
-    }
   };
 
   const startEditDoc = (doc: IADocument) => { setEditingDocId(doc.id); setEditTitle(doc.title); setEditContent(doc.content); };
@@ -569,71 +503,22 @@ export default function IAView() {
                   {uploadLoading ? 'Chargement...' : 'PDF / CSV / Image'}
                 </button>
                 <button
-                  onClick={() => { setShowDataGouv(v => !v); setDataGouvResults([]); setDataGouvQuery(''); }}
+                  onClick={() => setShowDataGouv(v => !v)}
                   className="flex items-center gap-2 border border-blue-400 text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
-                  <Globe className="w-4 h-4" /> data.gouv.fr
+                  <Globe className="w-4 h-4" /> Bases de données
                 </button>
                 <button onClick={() => { setNewImageData(undefined); setShowNewDoc(true); }} className="flex items-center gap-2 bg-[#00c875] hover:bg-[#00b368] text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
                   <Plus className="w-4 h-4" /> Texte libre
                 </button>
               </div>
             </div>
-            {/* data.gouv.fr search panel */}
+            {/* Multi-source data search panel */}
             {showDataGouv && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Globe className="w-4 h-4 text-blue-600" />
-                  <p className="text-sm font-semibold text-blue-800">Rechercher sur data.gouv.fr</p>
-                  <button onClick={() => setShowDataGouv(false)} className="ml-auto p-1 text-blue-400 hover:text-blue-700"><X className="w-4 h-4" /></button>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    value={dataGouvQuery}
-                    onChange={e => setDataGouvQuery(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleDataGouvSearch()}
-                    placeholder="Ex: équipements sportifs Bretagne, mobilité douce…"
-                    className="flex-1 border border-blue-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
-                  />
-                  <button
-                    onClick={handleDataGouvSearch}
-                    disabled={dataGouvLoading || !dataGouvQuery.trim()}
-                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors min-h-[40px]"
-                  >
-                    {dataGouvLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                    Chercher
-                  </button>
-                </div>
-                {dataGouvResults.length > 0 && (
-                  <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                    {dataGouvResults.map(ds => (
-                      <div key={ds.id} className="bg-white border border-blue-100 rounded-lg p-3 flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-800 truncate">{ds.title}</p>
-                          {ds.organization && <p className="text-xs text-blue-600">{ds.organization.name}</p>}
-                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{ds.description?.slice(0, 120)}{(ds.description?.length ?? 0) > 120 ? '…' : ''}</p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {ds.resources.filter(r => ['csv', 'json'].includes((r.format ?? '').toLowerCase())).slice(0, 3).map(r => (
-                              <span key={r.id} className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-mono">{(r.format ?? '?').toUpperCase()}</span>
-                            ))}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleImportDataset(ds)}
-                          disabled={importingId === ds.id}
-                          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 bg-[#00c875] hover:bg-[#00b368] disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors min-h-[36px]"
-                        >
-                          {importingId === ds.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Database className="w-3 h-3" />}
-                          Importer
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {!dataGouvLoading && dataGouvResults.length === 0 && dataGouvQuery && (
-                  <p className="text-xs text-blue-600 text-center py-2">Aucun résultat — essayez d'autres mots-clés</p>
-                )}
-              </div>
+              <DataSourcesPanel
+                onClose={() => setShowDataGouv(false)}
+                onImport={(doc) => addDocument({ title: doc.title, content: doc.content })}
+              />
             )}
 
             {showNewDoc && (

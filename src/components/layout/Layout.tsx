@@ -121,7 +121,7 @@ export default function Layout({ view, setView, children }: Props) {
     if (view.type === 'workspaces') return 'Espaces de travail';
     if (view.type === 'workspace') return 'Espace de travail';
     if (view.type === 'final-document') return 'Dossier final';
-    if (view.type === 'diagrams') return 'Schémas';
+    if (view.type === 'diagrams') return 'Diagrammes';
     if (view.type === 'ia') return 'Assistant IA';
     if (view.type === 'gantt') return 'Planning';
     return '';
@@ -202,7 +202,7 @@ export default function Layout({ view, setView, children }: Props) {
           {navItem('Espaces de travail', FolderOpen, { type: 'workspaces' })}
           {navItem('Dossier final', FileText, { type: 'final-document' })}
           {navItem('Planning', CalendarRange, { type: 'gantt' })}
-          {navItem('Schémas', GitBranch, { type: 'diagrams' })}
+          {navItem('Diagrammes', GitBranch, { type: 'diagrams' })}
           {navItem('Assistant IA', Bot, { type: 'ia' })}
           {currentUser?.role === 'superadmin' && navItem('Utilisateurs', Users, { type: 'users' })}
           {currentUser?.role === 'superadmin' && navItem('Paramètres', Settings, { type: 'settings' })}
