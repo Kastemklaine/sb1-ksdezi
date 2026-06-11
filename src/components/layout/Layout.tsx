@@ -334,9 +334,13 @@ export default function Layout({ view, setView, children }: Props) {
                 onClick={() => setUserMenuOpen(o => !o)}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors min-h-[44px]"
               >
-                <div className="w-7 h-7 rounded-full bg-[#00c875] flex items-center justify-center text-white text-xs font-bold">
-                  {currentUser?.name.charAt(0)}
-                </div>
+                {currentUser?.avatarUrl ? (
+                  <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-7 h-7 rounded-full object-cover" />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-[#00c875] flex items-center justify-center text-white text-xs font-bold">
+                    {currentUser?.name.charAt(0)}
+                  </div>
+                )}
                 <span className="text-sm font-medium text-gray-700 hidden md:block">{currentUser?.name}</span>
                 <ChevronDown className="w-3 h-3 text-gray-400 hidden md:block" />
               </button>

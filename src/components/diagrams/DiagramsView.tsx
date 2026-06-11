@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GitBranch, Plus, Trash2, ArrowLeft } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -7,9 +7,10 @@ import type { View } from '../../App';
 
 interface Props {
   setView: (v: View) => void;
+  diagramId?: string;
 }
 
-export default function DiagramsView({ setView: _setView }: Props) {
+export default function DiagramsView({ setView, diagramId }: Props) {
   const currentUser = useAuthStore(s => s.currentUser);
   const allDocuments = useProjectStore(s => curProject(s)?.documents ?? []);
   const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
@@ -26,6 +27,11 @@ export default function DiagramsView({ setView: _setView }: Props) {
   const [newDiagramWsId, setNewDiagramWsId] = useState('');
 
   const isAdmin = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
+
+  // Auto-open when coming from DiagramsHub with a specific diagramId
+  useEffect(() => {
+    if (diagramId) openDiagram(diagramId);
+  }, [diagramId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openNewDiagram = () => {
     if (workstreams.length === 0) return;
@@ -105,8 +111,11 @@ export default function DiagramsView({ setView: _setView }: Props) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
+          <button onClick={() => setView({ type: 'diagrams' })} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <ArrowLeft className="w-4 h-4 text-gray-600" />
+          </button>
           <GitBranch className="w-6 h-6 text-green-600" />
-          <h2 className="text-xl font-bold text-gray-900">Schémas</h2>
+          <h2 className="text-xl font-bold text-gray-900">Schémas de flux</h2>
         </div>
         <button
           onClick={openNewDiagram}

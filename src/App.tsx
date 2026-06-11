@@ -19,10 +19,12 @@ const ProjectsView = lazy(() => import('./components/projects/ProjectsView'));
 const WorkspacesSelector = lazy(() => import('./components/workspace/WorkspacesSelector'));
 const WorkspaceView = lazy(() => import('./components/workspace/WorkspaceView'));
 const FinalDocumentView = lazy(() => import('./components/workspace/FinalDocumentView'));
+const DiagramsHub = lazy(() => import('./components/diagrams/DiagramsHub'));
 const DiagramsView = lazy(() => import('./components/diagrams/DiagramsView'));
+const OrgChartView = lazy(() => import('./components/diagrams/OrgChartView'));
+const GanttView = lazy(() => import('./components/gantt/GanttView'));
 const LegalView = lazy(() => import('./components/legal/LegalView'));
 const IAView = lazy(() => import('./components/ia/IAView'));
-const GanttView = lazy(() => import('./components/gantt/GanttView'));
 
 export type View =
   | { type: 'dashboard' }
@@ -38,9 +40,11 @@ export type View =
   | { type: 'workspace'; workstreamId: string }
   | { type: 'final-document' }
   | { type: 'diagrams' }
+  | { type: 'diagrams-editor'; diagramId?: string }
+  | { type: 'orgchart' }
+  | { type: 'gantt' }
   | { type: 'legal' }
-  | { type: 'ia' }
-  | { type: 'gantt' };
+  | { type: 'ia' };
 
 function Forbidden() {
   return (
@@ -81,10 +85,12 @@ function AppInner({ view, setView }: { view: View; setView: (v: View) => void })
           {view.type === 'workspaces' && <WorkspacesSelector setView={setView} />}
           {view.type === 'workspace' && <WorkspaceView workstreamId={view.workstreamId} setView={setView} />}
           {view.type === 'final-document' && <FinalDocumentView />}
-          {view.type === 'diagrams' && <DiagramsView setView={setView} />}
+          {view.type === 'diagrams' && <DiagramsHub setView={setView} />}
+          {view.type === 'diagrams-editor' && <DiagramsView setView={setView} diagramId={view.diagramId} />}
+          {view.type === 'orgchart' && <OrgChartView setView={setView} />}
+          {view.type === 'gantt' && <GanttView setView={setView} />}
           {view.type === 'legal' && <LegalView />}
           {view.type === 'ia' && <IAView />}
-          {view.type === 'gantt' && <GanttView setView={setView} />}
         </Suspense>
       </Layout>
       {showOnboarding && <OnboardingTour onClose={() => setShowOnboarding(false)} />}

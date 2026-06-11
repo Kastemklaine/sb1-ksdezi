@@ -8,6 +8,7 @@ export interface User {
   email: string;
   role: Role;
   fonction?: string; // e.g. "Adjoint(e)", "Directeur/Directrice"
+  avatarUrl?: string; // base64 data URL for profile photo
   workstreamIds: string[];
   createdAt: string;
   twoFactorEnabled: boolean;

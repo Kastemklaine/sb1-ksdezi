@@ -40,7 +40,7 @@ interface AuthState {
   deleteUser: (id: string) => void;
   updatePassword: (userId: string, newPassword: string) => void;
   // Self-service profile
-  updateMyProfile: (data: { name?: string; firstName?: string; lastName?: string; email?: string; fonction?: string }) => void;
+  updateMyProfile: (data: { name?: string; firstName?: string; lastName?: string; email?: string; fonction?: string; avatarUrl?: string }) => void;
   changeMyPassword: (currentPassword: string, newPassword: string) => boolean;
   // 2FA
   generateTwoFactorSecret: (userId: string) => string;
