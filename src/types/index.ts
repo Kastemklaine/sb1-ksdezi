@@ -186,6 +186,7 @@ export interface Project {
   fonctions: string[];
   groqKey?: string;   // set once by superadmin, shared with all users via Firebase
   groqModel?: string; // default: llama-3.1-8b-instant
+  kaggleKey?: string; // Kaggle API token — set by superadmin
   workstreams: Workstream[];
   tasks: Task[];
   governance: GovernanceInstance[];

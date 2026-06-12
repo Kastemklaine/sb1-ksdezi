@@ -136,9 +136,11 @@ export default function IAView() {
   const documents = useProjectStore(s => curProject(s)?.iaDocuments ?? []);
   const groqKey = useProjectStore(s => curProject(s)?.groqKey ?? '');
   const groqModel = useProjectStore(s => curProject(s)?.groqModel ?? DEFAULT_MODEL);
+  const kaggleKey = useProjectStore(s => curProject(s)?.kaggleKey ?? '');
   const currentProjectId = useProjectStore(s => s.currentProjectId);
   const setGroqKey = useProjectStore(s => s.setGroqKey);
   const setGroqModel = useProjectStore(s => s.setGroqModel);
+  const setKaggleKey = useProjectStore(s => s.setKaggleKey);
   const addDocument = useProjectStore(s => s.addIADocument);
   const updateDocument = useProjectStore(s => s.updateIADocument);
   const deleteDocument = useProjectStore(s => s.deleteIADocument);
@@ -158,6 +160,7 @@ export default function IAView() {
   // Config form state (admin only)
   const [cfgKey, setCfgKey] = useState('');
   const [cfgModel, setCfgModel] = useState(DEFAULT_MODEL);
+  const [cfgKaggleKey, setCfgKaggleKey] = useState('');
 
   // Knowledge base editing
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
@@ -247,6 +250,7 @@ export default function IAView() {
   const openConfig = () => {
     setCfgKey(groqKey);
     setCfgModel(groqModel);
+    setCfgKaggleKey(kaggleKey);
     setShowConfig(true);
   };
 
@@ -255,6 +259,7 @@ export default function IAView() {
     const model = cfgModel.trim() || DEFAULT_MODEL;
     setGroqKey(key);
     setGroqModel(model);
+    setKaggleKey(cfgKaggleKey.trim());
     setShowConfig(false);
   };
 
@@ -518,6 +523,7 @@ export default function IAView() {
               <DataSourcesPanel
                 onClose={() => setShowDataGouv(false)}
                 onImport={(doc) => addDocument({ title: doc.title, content: doc.content })}
+                kaggleKey={kaggleKey}
               />
             )}
 
@@ -644,6 +650,23 @@ export default function IAView() {
                   <option value="llama-3.1-70b-versatile">llama-3.1-70b-versatile</option>
                   <option value="meta-llama/llama-4-scout-17b-16e-instruct">llama-4-scout-17b — plus récent</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                  Clé API Kaggle <span className="text-gray-400 normal-case font-normal">(optionnel — pour recherche directe)</span>
+                </label>
+                <input
+                  type="password"
+                  value={cfgKaggleKey}
+                  onChange={e => setCfgKaggleKey(e.target.value)}
+                  placeholder="KGAT_..."
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#00c875]"
+                />
+                {cfgKaggleKey && (
+                  <button onClick={() => setCfgKaggleKey('')} className="text-xs text-red-500 hover:text-red-700 mt-1 underline">Effacer la clé</button>
+                )}
+                <p className="text-xs text-gray-400 mt-1">Obtenez un token sur kaggle.com → Settings → API → Create New Token</p>
               </div>
 
               <div className="flex gap-2 justify-end pt-1">

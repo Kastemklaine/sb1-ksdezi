@@ -243,7 +243,7 @@ async function searchINSEE(query: string): Promise<DataResult[]> {
   }));
 }
 
-async function performSearch(source: SourceId, query: string): Promise<DataResult[]> {
+async function performSearch(source: SourceId, query: string, kaggleKey?: string): Promise<DataResult[]> {
   switch (source) {
     case 'datagouv': return searchDataGouv(query);
     case 'culture': return searchCulture(query);
@@ -255,18 +255,37 @@ async function performSearch(source: SourceId, query: string): Promise<DataResul
     case 'pubmed': return searchPubMed(query);
     case 'huggingface': return searchHuggingFace(query);
     case 'eurostat': return searchEurostat(query);
-    case 'kaggle': return []; // external only
+    case 'kaggle': return kaggleKey ? searchKaggle(query, kaggleKey) : [];
     default: return [];
   }
+}
+
+async function searchKaggle(query: string, token: string): Promise<DataResult[]> {
+  const res = await fetch(
+    `https://www.kaggle.com/api/v1/datasets/list?search=${encodeURIComponent(query)}&page=1&pageSize=8&sortBy=relevance`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) throw new Error(`Kaggle API: ${res.status} — vérifiez votre token`);
+  const json = await res.json();
+  return (Array.isArray(json) ? json : []).map((d: any) => ({
+    id: `kaggle-${d.ref}`,
+    title: d.title ?? d.ref,
+    description: d.subtitle?.slice(0, 250) ?? `${d.totalBytes ? Math.round(d.totalBytes / 1024) + ' KB' : ''} — ${d.licenseName ?? ''}`,
+    url: `https://www.kaggle.com/datasets/${d.ref}`,
+    organization: d.ownerUser ?? d.creatorName,
+    source: 'Kaggle',
+    importContent: `Source : Kaggle Datasets\nURL : https://www.kaggle.com/datasets/${d.ref}\nAuteur : ${d.ownerUser ?? d.creatorName ?? 'Inconnu'}\nLicence : ${d.licenseName ?? 'Non précisée'}\nTaille : ${d.totalBytes ? Math.round(d.totalBytes / 1024) + ' KB' : 'Non précisée'}\nVotes : ${d.voteCount ?? 0}\nTéléchargements : ${d.downloadCount ?? 0}\n\nTitre : ${d.title ?? d.ref}\n\nDescription :\n${d.subtitle ?? 'Pas de description.'}`,
+  }));
 }
 
 // ---- Component ----
 interface Props {
   onClose: () => void;
   onImport: (doc: { title: string; content: string }) => void;
+  kaggleKey?: string;
 }
 
-export default function DataSourcesPanel({ onClose, onImport }: Props) {
+export default function DataSourcesPanel({ onClose, onImport, kaggleKey }: Props) {
   const [source, setSource] = useState<SourceId>('datagouv');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<DataResult[]>([]);
@@ -283,7 +302,7 @@ export default function DataSourcesPanel({ onClose, onImport }: Props) {
     setError(null);
     setResults([]);
     try {
-      const r = await performSearch(source, query.trim());
+      const r = await performSearch(source, query.trim(), kaggleKey);
       setResults(r);
     } catch (e: any) {
       setError(e?.message ?? 'Erreur de recherche');
@@ -375,10 +394,11 @@ export default function DataSourcesPanel({ onClose, onImport }: Props) {
       )}
 
       {/* External-only notices */}
-      {source === 'kaggle' && !loading && (
+      {source === 'kaggle' && !loading && !kaggleKey && (
         <div className="bg-white border border-cyan-200 rounded-lg p-3 text-xs text-gray-600">
-          <p className="font-medium text-cyan-700 mb-1">Kaggle nécessite une authentification API.</p>
-          <p>Cliquez sur "Site" pour rechercher sur Kaggle, puis collez l'URL et le titre via "Texte libre".</p>
+          <p className="font-medium text-cyan-700 mb-1">Token Kaggle non configuré.</p>
+          <p>Un administrateur peut saisir le token API Kaggle dans les paramètres IA (icône ⚙️) pour activer la recherche directe.</p>
+          <p className="mt-1">En attendant, cliquez sur "Site" pour rechercher manuellement sur Kaggle.</p>
         </div>
       )}
       {source === 'anct' && !loading && (
