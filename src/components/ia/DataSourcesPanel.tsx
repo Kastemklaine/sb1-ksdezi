@@ -12,7 +12,7 @@ export interface DataResult {
   importContent: string; // full text to import as knowledge doc
 }
 
-type SourceId = 'datagouv' | 'eurostat' | 'worldbank' | 'hal' | 'arxiv' | 'pubmed' | 'huggingface' | 'kaggle';
+type SourceId = 'datagouv' | 'culture' | 'insee' | 'anct' | 'eurostat' | 'worldbank' | 'hal' | 'arxiv' | 'pubmed' | 'huggingface' | 'kaggle';
 
 const SOURCES: Array<{
   id: SourceId;
@@ -23,6 +23,9 @@ const SOURCES: Array<{
   externalSearchUrl?: (q: string) => string;
 }> = [
   { id: 'datagouv', name: 'data.gouv.fr', icon: Globe, color: 'blue', description: 'Données publiques françaises' },
+  { id: 'culture', name: 'Min. Culture', icon: Building2, color: 'violet', description: 'Ministère de la Culture — data.culture.gouv.fr' },
+  { id: 'insee', name: 'INSEE', icon: Building2, color: 'orange', description: 'Institut National de la Statistique et des Études Économiques' },
+  { id: 'anct', name: 'ANCT', icon: Globe, color: 'green', description: 'Agence Nationale de la Cohésion des Territoires', externalSearchUrl: q => `https://agence-cohesion-territoires.gouv.fr/recherche?keys=${encodeURIComponent(q)}` },
   { id: 'eurostat', name: 'Eurostat', icon: Building2, color: 'sky', description: 'Statistiques de l\'Union européenne', externalSearchUrl: q => `https://ec.europa.eu/eurostat/web/main/search/-/search/estatsearchportlet_WAR_estatsearchportlet?text=${encodeURIComponent(q)}` },
   { id: 'worldbank', name: 'World Bank', icon: Globe, color: 'emerald', description: 'Banque Mondiale — données mondiales' },
   { id: 'hal', name: 'HAL', icon: BookOpen, color: 'indigo', description: 'Articles scientifiques en libre accès (FR)' },
@@ -34,6 +37,9 @@ const SOURCES: Array<{
 
 const COLOR_MAP: Record<string, { bg: string; text: string; border: string; btn: string; ring: string }> = {
   blue: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', btn: 'bg-blue-600 hover:bg-blue-700', ring: 'ring-blue-400' },
+  violet: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200', btn: 'bg-violet-600 hover:bg-violet-700', ring: 'ring-violet-400' },
+  orange: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', btn: 'bg-orange-600 hover:bg-orange-700', ring: 'ring-orange-400' },
+  green: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', btn: 'bg-green-600 hover:bg-green-700', ring: 'ring-green-400' },
   sky: { bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200', btn: 'bg-sky-600 hover:bg-sky-700', ring: 'ring-sky-400' },
   emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', btn: 'bg-emerald-600 hover:bg-emerald-700', ring: 'ring-emerald-400' },
   indigo: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', btn: 'bg-indigo-600 hover:bg-indigo-700', ring: 'ring-indigo-400' },
@@ -203,27 +209,83 @@ async function searchEurostat(query: string): Promise<DataResult[]> {
     });
 }
 
-async function performSearch(source: SourceId, query: string): Promise<DataResult[]> {
+async function searchCulture(query: string): Promise<DataResult[]> {
+  const res = await fetch(
+    `https://data.culture.gouv.fr/api/explore/v2.1/catalog/datasets?where=${encodeURIComponent(query)}&limit=8&lang=fr`
+  );
+  if (!res.ok) throw new Error(`data.culture.gouv.fr: ${res.status}`);
+  const json = await res.json();
+  return (json.results ?? []).map((d: any) => ({
+    id: `culture-${d.dataset_id}`,
+    title: d.metas?.default?.title ?? d.dataset_id ?? 'Sans titre',
+    description: d.metas?.default?.description?.slice(0, 250),
+    url: `https://data.culture.gouv.fr/explore/dataset/${d.dataset_id}/`,
+    organization: d.metas?.default?.publisher ?? 'Ministère de la Culture',
+    source: 'Min. Culture',
+    importContent: `Source : Ministère de la Culture (data.culture.gouv.fr)\nURL : https://data.culture.gouv.fr/explore/dataset/${d.dataset_id}/\nÉditeur : ${d.metas?.default?.publisher ?? 'Non précisé'}\nThèmes : ${(d.metas?.default?.theme ?? []).join(', ')}\n\nTitre : ${d.metas?.default?.title ?? d.dataset_id}\n\nDescription :\n${d.metas?.default?.description ?? 'Pas de description.'}`,
+  }));
+}
+
+async function searchINSEE(query: string): Promise<DataResult[]> {
+  const res = await fetch(
+    `https://www.data.gouv.fr/api/1/datasets/?q=${encodeURIComponent(query + ' insee')}&organization=534fff81a3a7292c64a77e5c&page_size=8&sort=-created`
+  );
+  if (!res.ok) throw new Error(`INSEE via data.gouv.fr: ${res.status}`);
+  const json = await res.json();
+  return (json.data ?? []).map((ds: any) => ({
+    id: `insee-${ds.id}`,
+    title: ds.title,
+    description: ds.description?.slice(0, 250),
+    url: ds.page,
+    organization: 'INSEE',
+    source: 'INSEE',
+    importContent: `Source : INSEE (via data.gouv.fr)\nURL : ${ds.page}\nMots-clés : ${(ds.tags ?? []).join(', ')}\n\nTitre : ${ds.title}\n\nDescription :\n${ds.description ?? ''}`,
+  }));
+}
+
+async function performSearch(source: SourceId, query: string, kaggleKey?: string): Promise<DataResult[]> {
   switch (source) {
     case 'datagouv': return searchDataGouv(query);
+    case 'culture': return searchCulture(query);
+    case 'insee': return searchINSEE(query);
+    case 'anct': return []; // external only — links to ANCT website
     case 'worldbank': return searchWorldBank(query);
     case 'hal': return searchHAL(query);
     case 'arxiv': return searchArxiv(query);
     case 'pubmed': return searchPubMed(query);
     case 'huggingface': return searchHuggingFace(query);
     case 'eurostat': return searchEurostat(query);
-    case 'kaggle': return []; // external only
+    case 'kaggle': return kaggleKey ? searchKaggle(query, kaggleKey) : [];
     default: return [];
   }
+}
+
+async function searchKaggle(query: string, token: string): Promise<DataResult[]> {
+  const res = await fetch(
+    `https://www.kaggle.com/api/v1/datasets/list?search=${encodeURIComponent(query)}&page=1&pageSize=8&sortBy=relevance`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) throw new Error(`Kaggle API: ${res.status} — vérifiez votre token`);
+  const json = await res.json();
+  return (Array.isArray(json) ? json : []).map((d: any) => ({
+    id: `kaggle-${d.ref}`,
+    title: d.title ?? d.ref,
+    description: d.subtitle?.slice(0, 250) ?? `${d.totalBytes ? Math.round(d.totalBytes / 1024) + ' KB' : ''} — ${d.licenseName ?? ''}`,
+    url: `https://www.kaggle.com/datasets/${d.ref}`,
+    organization: d.ownerUser ?? d.creatorName,
+    source: 'Kaggle',
+    importContent: `Source : Kaggle Datasets\nURL : https://www.kaggle.com/datasets/${d.ref}\nAuteur : ${d.ownerUser ?? d.creatorName ?? 'Inconnu'}\nLicence : ${d.licenseName ?? 'Non précisée'}\nTaille : ${d.totalBytes ? Math.round(d.totalBytes / 1024) + ' KB' : 'Non précisée'}\nVotes : ${d.voteCount ?? 0}\nTéléchargements : ${d.downloadCount ?? 0}\n\nTitre : ${d.title ?? d.ref}\n\nDescription :\n${d.subtitle ?? 'Pas de description.'}`,
+  }));
 }
 
 // ---- Component ----
 interface Props {
   onClose: () => void;
   onImport: (doc: { title: string; content: string }) => void;
+  kaggleKey?: string;
 }
 
-export default function DataSourcesPanel({ onClose, onImport }: Props) {
+export default function DataSourcesPanel({ onClose, onImport, kaggleKey }: Props) {
   const [source, setSource] = useState<SourceId>('datagouv');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<DataResult[]>([]);
@@ -240,7 +302,7 @@ export default function DataSourcesPanel({ onClose, onImport }: Props) {
     setError(null);
     setResults([]);
     try {
-      const r = await performSearch(source, query.trim());
+      const r = await performSearch(source, query.trim(), kaggleKey);
       setResults(r);
     } catch (e: any) {
       setError(e?.message ?? 'Erreur de recherche');
@@ -331,11 +393,18 @@ export default function DataSourcesPanel({ onClose, onImport }: Props) {
         </div>
       )}
 
-      {/* Kaggle / external-only notice */}
-      {source === 'kaggle' && !loading && (
+      {/* External-only notices */}
+      {source === 'kaggle' && !loading && !kaggleKey && (
         <div className="bg-white border border-cyan-200 rounded-lg p-3 text-xs text-gray-600">
-          <p className="font-medium text-cyan-700 mb-1">Kaggle nécessite une authentification API.</p>
-          <p>Cliquez sur "Site" pour rechercher sur Kaggle, puis collez l'URL et le titre via "Texte libre".</p>
+          <p className="font-medium text-cyan-700 mb-1">Token Kaggle non configuré.</p>
+          <p>Un administrateur peut saisir le token API Kaggle dans les paramètres IA (icône ⚙️) pour activer la recherche directe.</p>
+          <p className="mt-1">En attendant, cliquez sur "Site" pour rechercher manuellement sur Kaggle.</p>
+        </div>
+      )}
+      {source === 'anct' && !loading && (
+        <div className="bg-white border border-green-200 rounded-lg p-3 text-xs text-gray-600">
+          <p className="font-medium text-green-700 mb-1">ANCT — Agence Nationale de la Cohésion des Territoires</p>
+          <p>Cliquez sur "Site" pour accéder aux publications et rapports de l'ANCT, puis importez via "Texte libre".</p>
         </div>
       )}
 
@@ -370,7 +439,7 @@ export default function DataSourcesPanel({ onClose, onImport }: Props) {
         </div>
       )}
 
-      {!loading && results.length === 0 && query && !error && source !== 'kaggle' && (
+      {!loading && results.length === 0 && query && !error && source !== 'kaggle' && source !== 'anct' && (
         <p className={`text-xs ${colors.text} text-center py-2`}>Aucun résultat — essayez d'autres mots-clés</p>
       )}
     </div>

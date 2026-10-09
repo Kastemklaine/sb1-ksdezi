@@ -83,6 +83,7 @@ interface ProjectState {
   removeFonction: (label: string) => void;
   setGroqKey: (key: string) => void;
   setGroqModel: (model: string) => void;
+  setKaggleKey: (key: string) => void;
   updateProjectLogo: (logoUrl: string) => void;
   // Checklist
   addChecklistItem: (taskId: string, text: string) => void;
@@ -358,6 +359,10 @@ export const useProjectStore = create<ProjectState>()(
 
       setGroqModel: (model) => {
         updateCur(set, () => ({ groqModel: model }));
+      },
+
+      setKaggleKey: (key) => {
+        updateCur(set, () => ({ kaggleKey: key }));
       },
 
       updateProjectLogo: (logoUrl) => {

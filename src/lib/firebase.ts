@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 import { getDatabase } from 'firebase/database';
 
@@ -17,3 +17,13 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const rtdb = getDatabase(app);
+
+// Sign in anonymously as soon as the app loads so Firebase security rules can
+// require `auth != null`. Invisible to users (no login screen) but it means only
+// clients that actually loaded the app — and thus received a valid Firebase token
+// — can read/write the database. Closes the "open to the whole internet" hole.
+// Requires the Anonymous provider enabled in the Firebase console
+// (Authentication → Sign-in method → Anonymous).
+signInAnonymously(auth).catch((e) => {
+  console.error('Firebase anonymous auth failed:', e);
+});
