@@ -50,8 +50,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md px-4 py-8 sm:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-emerald-100 flex flex-col items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-2xl shadow-emerald-900/10 ring-1 ring-black/5 w-full max-w-md px-5 py-9 sm:px-9">
         <div className="flex flex-col items-center mb-8">
           {step === 'totp' ? (
             <div className="bg-green-600 rounded-full p-4 mb-4">
@@ -165,15 +165,11 @@ export default function LoginPage() {
           </form>
         )}
 
-        {step === 'credentials' && (
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg text-xs text-gray-500 space-y-1">
-            <p className="font-medium text-gray-600 mb-2">Comptes de démonstration :</p>
-            <p>Super admin : admin@ville-enfant.fr / admin123</p>
-            <p>Admin : marie@ville-enfant.fr / marie123</p>
-            <p>Membre : jean@ville-enfant.fr / jean123</p>
-          </div>
-        )}
       </div>
+
+      <p className="mt-6 text-center text-xs text-gray-400">
+        © {new Date().getFullYear()} Commune de Quimperlé · Connexion sécurisée
+      </p>
     </div>
   );
 }
