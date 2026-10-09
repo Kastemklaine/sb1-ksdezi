@@ -9,6 +9,20 @@ const HEADER_COLORS = [
   'bg-orange-500', 'bg-red-600', 'bg-indigo-600', 'bg-emerald-600',
 ];
 
+// Plan de gouvernance « Vers la 4ᵉ fleur » — les 10 groupes de travail et leurs référents.
+const GOV_PLAN = [
+  { name: 'Communication', color: 'bg-yellow-400', textColor: 'text-yellow-900', icon: 'Megaphone', referents: 'Danièle Brochu, Mathieu Prigent' },
+  { name: 'Participation citoyenne', color: 'bg-red-500', textColor: 'text-white', icon: 'Heart', referents: 'Maxime Padellec, Karine Le Gad, Alix Bonneau' },
+  { name: 'Financement', color: 'bg-emerald-600', textColor: 'text-white', icon: 'Building2', referents: 'Eric Allagon, Marie-Laure Girault' },
+  { name: 'Tourisme & commerce', color: 'bg-cyan-500', textColor: 'text-white', icon: 'MapPin', referents: 'Pascal Pillault, Anne Le Sénéchal' },
+  { name: 'Sensibilisation & médiation', color: 'bg-pink-500', textColor: 'text-white', icon: 'BookOpen', referents: 'Danièle Brochu, Kristell Morice' },
+  { name: 'Signalétique', color: 'bg-purple-600', textColor: 'text-white', icon: 'MapPin', referents: 'Pascal Pillault, Mathieu Prigent' },
+  { name: 'Sport', color: 'bg-blue-600', textColor: 'text-white', icon: 'Bike', referents: 'Olivier Brouxel, Vincent Thaeron' },
+  { name: 'Voirie & mobilités', color: 'bg-orange-500', textColor: 'text-white', icon: 'Car', referents: 'Nicolas Riault, Yves Schryve' },
+  { name: 'Fleurissement, propreté & aménagements urbains', color: 'bg-lime-600', textColor: 'text-white', icon: 'Flower2', referents: 'Danièle Brochu, David Simon' },
+  { name: 'Habitat', color: 'bg-indigo-600', textColor: 'text-white', icon: 'Building2', referents: 'Pierre Franqueville, Sarah Oueslati' },
+];
+
 export default function GovernanceView() {
   const governance = useProjectStore(s => curProject(s)?.governance ?? []);
   const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
@@ -16,8 +30,37 @@ export default function GovernanceView() {
   const createGovernance = useProjectStore(s => s.createGovernance);
   const deleteGovernance = useProjectStore(s => s.deleteGovernance);
   const moveGovernance = useProjectStore(s => s.moveGovernance);
+  const createWorkstream = useProjectStore(s => s.createWorkstream);
   const { users, currentUser } = useAuthStore();
   const isSuperAdmin = currentUser?.role === 'superadmin';
+
+  const applyGovernancePlan = () => {
+    const ok = window.confirm(
+      "Charger le plan « Vers la 4ᵉ fleur » ?\n\nCela AJOUTE les 10 groupes de travail manquants (avec leurs référents) et crée COPIL/COTECH s'ils n'existent pas.\n\nAucun groupe existant ne sera supprimé ni modifié."
+    );
+    if (!ok) return;
+    const existing = new Set(workstreams.map(w => w.name.trim().toLowerCase()));
+    let created = 0;
+    GOV_PLAN.forEach(g => {
+      if (existing.has(g.name.trim().toLowerCase())) return;
+      createWorkstream({
+        name: g.name,
+        color: g.color,
+        textColor: g.textColor,
+        description: `Référents : ${g.referents}`,
+        notes: '',
+        icon: g.icon,
+        instance: 'none',
+        assigneeIds: [],
+        subSections: [],
+      });
+      created++;
+    });
+    const govNames = governance.map(x => x.name.toLowerCase());
+    if (!govNames.some(n => n.includes('copil') || n.includes('pilotage'))) createGovernance('COPIL', 'Comité de pilotage — décisionnaire');
+    if (!govNames.some(n => n.includes('cote') || n.includes('technique'))) createGovernance('COTECH', 'Comité technique — suivi opérationnel');
+    window.alert(`${created} groupe(s) de travail ajouté(s). Les groupes déjà présents ont été conservés.`);
+  };
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<GovernanceInstance>>({});
@@ -73,10 +116,17 @@ export default function GovernanceView() {
           </div>
         </div>
         {isSuperAdmin && (
-          <button onClick={() => setShowNewForm(true)}
-            className="flex items-center gap-2 bg-[#00c875] hover:bg-[#00b368] text-white text-sm font-medium px-4 py-2 rounded-lg min-h-[44px]">
-            <Plus className="w-4 h-4" /> Nouvelle instance
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={applyGovernancePlan}
+              title="Ajouter automatiquement les 10 groupes de travail du plan"
+              className="flex items-center gap-2 bg-white border border-[#00c875] text-[#00a862] hover:bg-[#00c875]/10 text-sm font-medium px-4 py-2 rounded-lg min-h-[44px]">
+              <Layers className="w-4 h-4" /> Charger le plan
+            </button>
+            <button onClick={() => setShowNewForm(true)}
+              className="flex items-center gap-2 bg-[#00c875] hover:bg-[#00b368] text-white text-sm font-medium px-4 py-2 rounded-lg min-h-[44px]">
+              <Plus className="w-4 h-4" /> Nouvelle instance
+            </button>
+          </div>
         )}
       </div>
 

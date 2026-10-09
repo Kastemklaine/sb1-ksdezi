@@ -1,4 +1,4 @@
-import { Users2, ArrowLeft, User } from 'lucide-react';
+import { Users2, ArrowLeft, User, Flower2 } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { View } from '../../App';
@@ -64,7 +64,19 @@ export default function OrgChartView({ setView }: Props) {
         </div>
       </div>
 
-      {/* Vertical hierarchy: COPIL → COTECH → thème central → groupes de travail */}
+      {/* « Ville à hauteur d'enfant » englobe toute la démarche : c'est le cadre.
+         À l'intérieur : la gouvernance (COPIL → COTECH) puis les groupes de travail. */}
+      <div className="rounded-3xl border-2 border-[#00a862]/40 bg-gradient-to-b from-[#f2fbf7] to-white p-5 sm:p-7 shadow-sm">
+        {/* Objectif central qui rassemble tout */}
+        <div className="text-center mb-7">
+          <span className="inline-flex items-center gap-2 bg-[#00a862] text-white px-5 py-2 rounded-full font-bold shadow">
+            <Flower2 className="w-4 h-4" /> {projectSubtitle || 'Vers la 4ᵉ fleur'}
+          </span>
+          <p className="mt-3 font-extrabold text-gray-900 text-xl leading-snug">Ville à hauteur d'enfant</p>
+          <p className="text-gray-500 text-sm">Handicaps &amp; accessibilité — l'objectif qui rassemble toute la démarche</p>
+        </div>
+
+      {/* Gouvernance : COPIL → COTECH */}
       <div className="flex flex-col items-center">
         {orderedGov.map((gov, idx) => {
           const members = gov.memberIds.map(id => getUserById(id)).filter(Boolean);
@@ -99,20 +111,12 @@ export default function OrgChartView({ setView }: Props) {
           );
         })}
 
-        {orderedGov.length > 0 && <Connector />}
-
-        {/* Central theme node */}
-        <div className="rounded-2xl border-2 border-[#00a862] bg-[#e8f8f0] px-7 py-4 text-center shadow-sm max-w-md">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-[#00844e]">Objectif central</p>
-          <p className="font-extrabold text-gray-900 text-lg mt-1 leading-snug">{projectSubtitle || projectName}</p>
-        </div>
-
-        {workstreams.length > 0 && <Connector />}
+        {orderedGov.length > 0 && workstreams.length > 0 && <Connector />}
       </div>
 
-      {/* Workstreams */}
+      {/* Groupes de travail (à l'intérieur de l'objectif) */}
       {workstreams.length > 0 && (
-        <div>
+        <div className="mt-6">
           <p className="text-center text-xs text-gray-400 uppercase tracking-wide font-semibold mb-4">Les {workstreams.length} groupes de travail</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {workstreams.map(ws => {
@@ -123,12 +127,7 @@ export default function OrgChartView({ setView }: Props) {
                     <p className={`font-semibold text-sm ${ws.textColor}`}>{ws.name}</p>
                   </div>
                   <div className="p-3">
-                    {assignees.length === 0 ? (
-                      <div className="flex items-center gap-2 text-gray-400 text-xs">
-                        <User className="w-3.5 h-3.5" />
-                        <span>Non assigné</span>
-                      </div>
-                    ) : (
+                    {assignees.length > 0 ? (
                       <div className="space-y-2">
                         {assignees.map(u => u && (
                           <div key={u.id} className="flex items-center gap-2">
@@ -140,6 +139,13 @@ export default function OrgChartView({ setView }: Props) {
                           </div>
                         ))}
                       </div>
+                    ) : ws.description ? (
+                      <p className="text-xs text-gray-500 leading-relaxed">{ws.description}</p>
+                    ) : (
+                      <div className="flex items-center gap-2 text-gray-400 text-xs">
+                        <User className="w-3.5 h-3.5" />
+                        <span>Non assigné</span>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -148,6 +154,7 @@ export default function OrgChartView({ setView }: Props) {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
