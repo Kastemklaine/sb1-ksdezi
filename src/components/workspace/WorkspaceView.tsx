@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Plus, Trash2, X, FileText, MessageSquare, Send, ChevronDown, ChevronRight, FolderPlus, ArrowLeft, GitBranch, Network, BrainCircuit, Square, Download } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Trash2, X, FileText, MessageSquare, Send, ChevronDown, ChevronRight, FolderPlus, ArrowLeft, GitBranch, Network, BrainCircuit, Square, Download, FileUp, Loader2 } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RichTextEditor from '../editor/RichTextEditor';
+import { exportHtmlToWord, importWordToHtml } from '../../lib/wordExport';
 import DiagramEditor, { type DiagramData } from '../diagrams/DiagramEditor';
 import type { WorkspaceDocument } from '../../types';
 import type { View } from '../../App';
@@ -47,6 +48,26 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
   const [editingDoc, setEditingDoc] = useState<WorkspaceDocument | null>(null);
   const [docTitle, setDocTitle] = useState('');
   const [docContent, setDocContent] = useState('');
+  const [editorKey, setEditorKey] = useState(0);
+  const [importingWord, setImportingWord] = useState(false);
+  const wordInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportWord = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = '';
+    if (!file) return;
+    setImportingWord(true);
+    try {
+      const html = await importWordToHtml(file);
+      setDocContent(prev => (prev && prev !== '<p></p>' ? prev + html : html));
+      setEditorKey(k => k + 1); // remount editor so imported content appears
+      if (!docTitle.trim()) setDocTitle(file.name.replace(/\.docx?$/i, ''));
+    } catch {
+      alert("Impossible de lire ce fichier Word. Vérifiez qu'il s'agit bien d'un fichier .docx.");
+    } finally {
+      setImportingWord(false);
+    }
+  };
   const [showNewSubSection, setShowNewSubSection] = useState(false);
   const [newSubName, setNewSubName] = useState('');
 
@@ -248,9 +269,29 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
               placeholder={isDiagram ? 'Titre du schéma' : 'Titre du document'}
             />
             {!isDiagram && (
-              <button onClick={handleSaveDoc} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors min-h-[40px]">
-                Enregistrer
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <input ref={wordInputRef} type="file" accept=".docx,.doc" onChange={handleImportWord} className="hidden" />
+                <button
+                  onClick={() => wordInputRef.current?.click()}
+                  disabled={importingWord}
+                  title="Importer un document Word (.docx)"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition-colors min-h-[40px] disabled:opacity-50"
+                >
+                  {importingWord ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+                  <span className="hidden sm:inline">Importer Word</span>
+                </button>
+                <button
+                  onClick={() => exportHtmlToWord(docTitle, docContent)}
+                  title="Télécharger au format Word"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors min-h-[40px]"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Word</span>
+                </button>
+                <button onClick={handleSaveDoc} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors min-h-[40px]">
+                  Enregistrer
+                </button>
+              </div>
             )}
           </div>
           {isDiagram ? (
@@ -264,6 +305,7 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
           ) : (
             <div className="flex-1 overflow-y-auto p-4 relative">
               <RichTextEditor
+                key={editorKey}
                 content={docContent}
                 onChange={setDocContent}
                 placeholder="Rédigez votre contenu..."
