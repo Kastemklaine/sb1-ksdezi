@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Printer, FileText, ChevronDown, ChevronRight, Pencil, Save, Send, BarChart2 } from 'lucide-react';
 import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { sanitizeHtml } from '../../lib/sanitize';
 
 type HeadingLevel = 1 | 2;
 
@@ -237,7 +238,7 @@ export default function FinalDocumentView() {
                     {docs.map(doc => (
                       <div key={doc.id} className="border border-gray-100 rounded-lg p-3">
                         <h3 className="font-semibold text-gray-800 text-sm mb-2">{doc.title}</h3>
-                        <div className="prose prose-sm max-w-none text-gray-700 text-xs" dangerouslySetInnerHTML={{ __html: doc.content }} />
+                        <div className="prose prose-sm max-w-none text-gray-700 text-xs" dangerouslySetInnerHTML={{ __html: sanitizeHtml(doc.content) }} />
                       </div>
                     ))}
                   </div>

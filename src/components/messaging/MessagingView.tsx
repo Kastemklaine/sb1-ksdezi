@@ -9,6 +9,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../lib/firebase';
 import { encryptText, decryptText } from '../../lib/crypto';
 import { composeInOutlook, htmlToPlainText } from '../../lib/outlook';
+import { sanitizeHtml } from '../../lib/sanitize';
 
 type MobilePanel = 'list' | 'detail';
 
@@ -170,7 +171,7 @@ export default function MessagingView() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-4 sm:p-5">
-            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: decryptedBodies[selectedMessage.id] ?? '<p class="text-gray-400 italic">Déchiffrement en cours...</p>' }} />
+            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(decryptedBodies[selectedMessage.id] ?? '<p class="text-gray-400 italic">Déchiffrement en cours...</p>') }} />
             {selectedMessage.attachments.length > 0 && (
               <div className="mt-6 border-t border-gray-100 pt-4">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Pièces jointes</p>

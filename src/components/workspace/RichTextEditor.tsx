@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { Bold, Italic, Underline, List, Heading1, Heading2, Save } from 'lucide-react';
+import { sanitizeHtml } from '../../lib/sanitize';
 
 interface Props {
   content: string;
@@ -32,7 +33,7 @@ export default function SimpleRichTextEditor({ content, onChange, onSave, placeh
     return (
       <div
         className="prose prose-sm max-w-none p-3"
-        dangerouslySetInnerHTML={{ __html: content }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
       />
     );
   }
