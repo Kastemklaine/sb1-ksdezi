@@ -29,8 +29,22 @@ export default function OrgChartView({ setView }: Props) {
   const workstreams = useProjectStore(s => curProject(s)?.workstreams ?? []);
   const users = useAuthStore(s => s.users);
   const projectName = useProjectStore(s => curProject(s)?.name ?? 'Projet');
+  const projectSubtitle = useProjectStore(s => curProject(s)?.subtitle ?? '');
 
   const getUserById = (id: string) => users.find(u => u.id === id);
+
+  // Order the governance instances to reflect the real hierarchy:
+  // COPIL (comité de pilotage, décisionnaire) au sommet, puis COTECH (comité technique).
+  const rank = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.includes('copil') || n.includes('pilotage')) return 0;
+    if (n.includes('cotech') || n.includes('cotec') || n.includes('technique')) return 1;
+    return 2;
+  };
+  const orderedGov = [...governance].sort((a, b) => rank(a.name) - rank(b.name));
+
+  // Connector between hierarchy levels
+  const Connector = () => <div className="w-0.5 h-7 bg-gradient-to-b from-gray-300 to-gray-200" />;
 
   return (
     <div className="space-y-6">
@@ -50,61 +64,56 @@ export default function OrgChartView({ setView }: Props) {
         </div>
       </div>
 
-      {/* Project root node */}
+      {/* Vertical hierarchy: COPIL → COTECH → thème central → groupes de travail */}
       <div className="flex flex-col items-center">
-        <div className="bg-gray-900 text-white rounded-xl px-6 py-3 text-center shadow-lg">
-          <p className="font-bold text-base">{projectName}</p>
-          <p className="text-xs text-gray-400 mt-0.5">Projet</p>
+        {orderedGov.map((gov, idx) => {
+          const members = gov.memberIds.map(id => getUserById(id)).filter(Boolean);
+          const isCopil = rank(gov.name) === 0;
+          return (
+            <div key={gov.id} className="flex flex-col items-center w-full">
+              {idx > 0 && <Connector />}
+              <div
+                className={`rounded-2xl px-7 py-3.5 text-center shadow-lg ${
+                  isCopil
+                    ? 'bg-gradient-to-br from-[#00a862] to-[#00844e] text-white'
+                    : 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white'
+                }`}
+              >
+                <p className="font-bold text-lg tracking-wide">{gov.name}</p>
+                <p className="text-xs text-white/70 mt-0.5">
+                  {isCopil ? 'Comité de pilotage · décisionnaire' : 'Comité technique'} · {members.length} membre{members.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              {members.length > 0 && (
+                <div className="flex flex-wrap gap-3 justify-center max-w-2xl mt-3">
+                  {members.map(u => u && (
+                    <div key={u.id} className="flex flex-col items-center gap-1 w-20">
+                      <Avatar name={u.name} avatarUrl={u.avatarUrl} />
+                      <p className="text-xs text-gray-700 font-semibold text-center leading-tight">{u.name.split(' ')[0]}</p>
+                      {u.fonction && <p className="text-[10px] text-gray-400 text-center leading-tight line-clamp-2">{u.fonction}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {orderedGov.length > 0 && <Connector />}
+
+        {/* Central theme node */}
+        <div className="rounded-2xl border-2 border-[#00a862] bg-[#e8f8f0] px-7 py-4 text-center shadow-sm max-w-md">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-[#00844e]">Objectif central</p>
+          <p className="font-extrabold text-gray-900 text-lg mt-1 leading-snug">{projectSubtitle || projectName}</p>
         </div>
 
-        {/* Connector */}
-        {(governance.length > 0 || workstreams.length > 0) && (
-          <div className="w-px h-8 bg-gray-300" />
-        )}
-
-        {/* Governance instances */}
-        {governance.length > 0 && (
-          <div className="w-full">
-            <div className="flex flex-wrap justify-center gap-6">
-              {governance.map(gov => {
-                const members = gov.memberIds.map(id => getUserById(id)).filter(Boolean);
-                return (
-                  <div key={gov.id} className="flex flex-col items-center min-w-[200px]">
-                    <div className="bg-indigo-600 text-white rounded-xl px-5 py-2.5 text-center shadow">
-                      <p className="font-semibold text-sm">{gov.name}</p>
-                      <p className="text-xs text-indigo-200 mt-0.5">{members.length} membre{members.length !== 1 ? 's' : ''}</p>
-                    </div>
-                    {members.length > 0 && (
-                      <>
-                        <div className="w-px h-5 bg-gray-300" />
-                        <div className="flex flex-wrap gap-2 justify-center max-w-xs">
-                          {members.map(u => u && (
-                            <div key={u.id} className="flex flex-col items-center gap-1">
-                              <Avatar name={u.name} avatarUrl={u.avatarUrl} />
-                              <p className="text-xs text-gray-600 font-medium text-center max-w-[80px] truncate">{u.name.split(' ')[0]}</p>
-                              {u.fonction && <p className="text-[10px] text-gray-400 text-center max-w-[80px] truncate">{u.fonction}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Connector to workstreams */}
-        {workstreams.length > 0 && (
-          <div className="w-px h-8 bg-gray-300 mt-4" />
-        )}
+        {workstreams.length > 0 && <Connector />}
       </div>
 
       {/* Workstreams */}
       {workstreams.length > 0 && (
         <div>
-          <p className="text-center text-xs text-gray-400 uppercase tracking-wide font-semibold mb-4">Axes du projet</p>
+          <p className="text-center text-xs text-gray-400 uppercase tracking-wide font-semibold mb-4">Les {workstreams.length} groupes de travail</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {workstreams.map(ws => {
               const assignees = ws.assigneeIds.map(id => getUserById(id)).filter(Boolean);

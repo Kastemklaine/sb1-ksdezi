@@ -41,21 +41,47 @@ export default function Dashboard({ setView }: Props) {
     .sort((a, b) => a.endDate.localeCompare(b.endDate));
   const highPriorityTasks = tasks.filter(t => t.priority === 'haute' && t.status !== 'done');
 
+  const greeting = (() => {
+    const h = today.getHours();
+    if (h < 12) return 'Bonjour';
+    if (h < 18) return 'Bon après-midi';
+    return 'Bonsoir';
+  })();
+
   return (
     <div className="space-y-7">
-      {/* Page title */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-        <p className="text-gray-500 mt-1 text-sm">{projectSubtitle}</p>
+      {/* Hero header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#00a862] via-[#00985a] to-[#00844e] text-white px-6 py-6 sm:px-8 sm:py-7 shadow-lg">
+        {/* decorative blobs */}
+        <div className="pointer-events-none absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/10" />
+        <div className="pointer-events-none absolute right-24 bottom-0 w-24 h-24 rounded-full bg-white/5" />
+        <div className="relative flex items-center justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur text-white text-xs font-semibold px-3 py-1 rounded-full mb-2">
+              <Flower2 className="w-3.5 h-3.5" /> Vers la 4ᵉ fleur
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-extrabold leading-tight">{greeting} 👋</h1>
+            <p className="text-white/85 mt-1 text-sm sm:text-base">{projectSubtitle || 'Tableau de bord du projet'}</p>
+          </div>
+          {totalTasks > 0 && (
+            <div className="flex items-center gap-4 shrink-0">
+              <ProgressRing pct={progressPct} />
+              <div className="hidden sm:block">
+                <p className="text-3xl font-extrabold leading-none">{doneTasks}<span className="text-white/60 text-lg font-bold">/{totalTasks}</span></p>
+                <p className="text-white/80 text-sm mt-1">tâches terminées</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        <KpiCard label="Tâches totales" value={totalTasks} sub="dans le projet" accentColor="#6366f1" lightBg="#eef2ff" />
-        <KpiCard label="En cours" value={inProgressTasks} sub="tâches actives" accentColor="#3b82f6" lightBg="#eff6ff" />
-        <KpiCard label="Terminées" value={doneTasks} sub={`${progressPct}% complété`} accentColor="#00c875" lightBg="#f0fdf4" />
-        <KpiCard label="Bloquées" value={blockedTasks} sub="nécessitent attention" accentColor="#ef4444" lightBg="#fff1f2" />
-        <KpiCard label="En retard" value={lateTasks.length} sub={lateTasks.length === 0 ? 'aucun retard' : 'à traiter'} accentColor={lateTasks.length > 0 ? '#f97316' : '#6b7280'} lightBg={lateTasks.length > 0 ? '#fff7ed' : '#f9fafb'} />
+        <KpiCard label="Tâches totales" value={totalTasks} sub="dans le projet" accentColor="#6366f1" />
+        <KpiCard label="En cours" value={inProgressTasks} sub="tâches actives" accentColor="#3b82f6" />
+        <KpiCard label="Terminées" value={doneTasks} sub={`${progressPct}% complété`} accentColor="#00c875" />
+        <KpiCard label="Bloquées" value={blockedTasks} sub="nécessitent attention" accentColor="#ef4444" />
+        <KpiCard label="En retard" value={lateTasks.length} sub={lateTasks.length === 0 ? 'aucun retard' : 'à traiter'} accentColor={lateTasks.length > 0 ? '#f97316' : '#6b7280'} />
       </div>
 
       {/* Global progress bar */}
@@ -240,25 +266,24 @@ export default function Dashboard({ setView }: Props) {
   );
 }
 
-function KpiCard({ label, value, sub, accentColor, lightBg }: {
+function KpiCard({ label, value, sub, accentColor }: {
   label: string;
   value: number | string;
   sub: string;
   accentColor: string;
-  lightBg: string;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm overflow-hidden relative">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm overflow-hidden relative hover:shadow-md transition-shadow">
       <div
-        className="absolute top-0 left-0 w-1 h-full rounded-l-xl"
+        className="absolute top-0 left-0 w-1.5 h-full rounded-l-xl"
         style={{ backgroundColor: accentColor }}
       />
-      <p className="text-xs text-gray-500 font-medium pl-1">{label}</p>
-      <p className="text-2xl font-bold mt-1 pl-1" style={{ color: accentColor }}>{value}</p>
+      <p className="text-xs text-gray-500 font-semibold pl-1">{label}</p>
+      <p className="text-3xl font-extrabold mt-1 pl-1" style={{ color: accentColor }}>{value}</p>
       <p className="text-xs text-gray-400 mt-0.5 pl-1">{sub}</p>
       <div
-        className="absolute top-2 right-3 w-9 h-9 rounded-lg flex items-center justify-center text-lg font-black opacity-20"
-        style={{ backgroundColor: lightBg, color: accentColor }}
+        className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full"
+        style={{ backgroundColor: accentColor }}
       />
     </div>
   );
@@ -267,5 +292,24 @@ function KpiCard({ label, value, sub, accentColor, lightBg }: {
 function StatusPill({ label, color }: { label: string; color: string }) {
   return (
     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${color}`}>{label}</span>
+  );
+}
+
+function ProgressRing({ pct }: { pct: number }) {
+  const r = 30;
+  const c = 2 * Math.PI * r;
+  const offset = c - (pct / 100) * c;
+  return (
+    <div className="relative w-[76px] h-[76px]">
+      <svg className="w-full h-full -rotate-90" viewBox="0 0 76 76">
+        <circle cx="38" cy="38" r={r} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="7" />
+        <circle
+          cx="38" cy="38" r={r} fill="none" stroke="white" strokeWidth="7" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={offset}
+          style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-white font-extrabold text-lg">{pct}%</span>
+    </div>
   );
 }
