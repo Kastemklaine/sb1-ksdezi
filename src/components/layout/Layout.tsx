@@ -88,13 +88,14 @@ export default function Layout({ view, setView, children }: Props) {
         key={label}
         onClick={() => navigateTo(v)}
         title={!expanded ? label : undefined}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all group relative min-h-[44px] ${
+        className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] transition-all group relative min-h-[48px] ${
           active
-            ? 'bg-[#00c875]/20 text-[#00c875] font-semibold'
-            : 'text-gray-400 hover:bg-white/10 hover:text-white'
+            ? 'bg-[#00c875]/20 text-[#00c875] font-semibold ring-1 ring-[#00c875]/30'
+            : 'text-gray-300 hover:bg-white/10 hover:text-white'
         }`}
       >
-        <NavIcon className="w-4 h-4 shrink-0" />
+        {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-[#00c875]" />}
+        <NavIcon className="w-5 h-5 shrink-0" />
         {expanded && <span className="truncate">{label}</span>}
         {!expanded && (
           <span className="absolute left-full ml-2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-lg">
@@ -175,13 +176,14 @@ export default function Layout({ view, setView, children }: Props) {
           <button
             onClick={() => navigateTo({ type: 'messaging' })}
             title={!expanded ? 'Messagerie' : undefined}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all group relative min-h-[44px] ${
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] transition-all group relative min-h-[48px] ${
               view.type === 'messaging'
-                ? 'bg-[#00c875]/20 text-[#00c875] font-semibold'
-                : 'text-gray-400 hover:bg-white/10 hover:text-white'
+                ? 'bg-[#00c875]/20 text-[#00c875] font-semibold ring-1 ring-[#00c875]/30'
+                : 'text-gray-300 hover:bg-white/10 hover:text-white'
             }`}
           >
-            <MessageSquare className="w-4 h-4 shrink-0" />
+            {view.type === 'messaging' && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-[#00c875]" />}
+            <MessageSquare className="w-5 h-5 shrink-0" />
             {expanded && <span className="truncate flex-1 text-left">Messagerie</span>}
             {expanded && unreadCount > 0 && (
               <span className="bg-green-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center shrink-0">
