@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import RichTextEditor from '../editor/RichTextEditor';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { sanitizeHtml } from '../../lib/sanitize';
 
 export default function FinalPageView() {
   const finalPage = useProjectStore(s => curProject(s)?.finalPage ?? { content: '', updatedAt: '', updatedBy: '' });
@@ -153,7 +154,7 @@ export default function FinalPageView() {
             </div>
           </>
         ) : finalPage.content ? (
-          <div className="prose prose-sm max-w-none text-gray-800" dangerouslySetInnerHTML={{ __html: finalPage.content }} />
+          <div className="prose prose-sm max-w-none text-gray-800" dangerouslySetInnerHTML={{ __html: sanitizeHtml(finalPage.content) }} />
         ) : (
           <div className="text-center py-12 text-gray-400">
             <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
