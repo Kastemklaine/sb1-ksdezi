@@ -8,6 +8,7 @@ import RichTextEditor from '../editor/RichTextEditor';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../lib/firebase';
 import { encryptText, decryptText } from '../../lib/crypto';
+import { composeInOutlook, htmlToPlainText } from '../../lib/outlook';
 
 type MobilePanel = 'list' | 'detail';
 
@@ -279,8 +280,19 @@ export default function MessagingView() {
                 <p className="text-xs text-gray-400 mt-1">Images, vidéos, PDF, Word, Excel</p>
               </div>
             </div>
-            <div className="flex justify-end gap-3 px-4 sm:px-6 py-4 border-t border-gray-100">
+            <div className="flex flex-wrap justify-end gap-3 px-4 sm:px-6 py-4 border-t border-gray-100">
               <button onClick={() => setShowCompose(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors min-h-[44px]">Annuler</button>
+              <button
+                type="button"
+                onClick={() => {
+                  const recipient = toId ? (users.find(u => u.id === toId)?.email ?? '') : '';
+                  composeInOutlook({ to: recipient, subject: subject.trim(), body: htmlToPlainText(body) });
+                }}
+                title="Ouvrir ce message dans Outlook"
+                className="flex items-center gap-2 px-4 py-2 border border-[#0f6cbd] text-[#0f6cbd] hover:bg-[#0f6cbd]/10 text-sm font-medium rounded-lg transition-colors min-h-[44px]"
+              >
+                <Send className="w-4 h-4" /> Outlook
+              </button>
               <button onClick={handleSend} disabled={sending || !subject.trim() || !body.trim()} className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors min-h-[44px]">
                 <Send className="w-4 h-4" /> Envoyer
               </button>

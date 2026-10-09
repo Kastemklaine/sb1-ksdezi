@@ -4,6 +4,7 @@ import { useProjectStore, curProject } from '../../store/useProjectStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RichTextEditor from '../editor/RichTextEditor';
 import { exportHtmlToWord, importWordToHtml } from '../../lib/wordExport';
+import { composeInOutlook, htmlToPlainText } from '../../lib/outlook';
 import DiagramEditor, { type DiagramData } from '../diagrams/DiagramEditor';
 import type { WorkspaceDocument } from '../../types';
 import type { View } from '../../App';
@@ -287,6 +288,14 @@ export default function WorkspaceView({ workstreamId, setView }: Props) {
                 >
                   <Download className="w-4 h-4" />
                   <span className="hidden sm:inline">Word</span>
+                </button>
+                <button
+                  onClick={() => composeInOutlook({ subject: docTitle, body: htmlToPlainText(docContent) })}
+                  title="Envoyer ce document par Outlook"
+                  className="flex items-center gap-1.5 px-3 py-2 border border-[#0f6cbd] text-[#0f6cbd] hover:bg-[#0f6cbd]/10 text-sm font-medium rounded-lg transition-colors min-h-[40px]"
+                >
+                  <Send className="w-4 h-4" />
+                  <span className="hidden sm:inline">Outlook</span>
                 </button>
                 <button onClick={handleSaveDoc} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors min-h-[40px]">
                   Enregistrer
