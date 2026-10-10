@@ -8,6 +8,7 @@ import {
   sendPasswordChangedEmail,
   sendTwoFaResetEmail,
 } from '../lib/emailService';
+import { makePasswordRecord, verifyPassword, isHashedPassword } from '../lib/crypto';
 
 const DEFAULT_USERS: User[] = [
   { id: 'u1', name: 'Super Administrateur', email: 'admin@ville-enfant.fr', role: 'superadmin', workstreamIds: [], createdAt: new Date().toISOString(), twoFactorEnabled: false },
@@ -31,17 +32,17 @@ interface AuthState {
   users: User[];
   passwords: Record<string, string>;
   // Auth
-  login: (email: string, password: string) => LoginResult;
+  login: (email: string, password: string) => Promise<LoginResult>;
   verifyTwoFactor: (email: string, token: string) => boolean;
   logout: () => void;
   // User CRUD
-  createUser: (data: Omit<User, 'id' | 'createdAt' | 'twoFactorEnabled' | 'twoFactorSecret'> & { password: string; projectName?: string }) => void;
+  createUser: (data: Omit<User, 'id' | 'createdAt' | 'twoFactorEnabled' | 'twoFactorSecret'> & { password: string; projectName?: string }) => Promise<void>;
   updateUser: (id: string, data: Partial<User>) => void;
   deleteUser: (id: string) => void;
-  updatePassword: (userId: string, newPassword: string) => void;
+  updatePassword: (userId: string, newPassword: string) => Promise<void>;
   // Self-service profile
   updateMyProfile: (data: { name?: string; firstName?: string; lastName?: string; email?: string; fonction?: string; avatarUrl?: string }) => void;
-  changeMyPassword: (currentPassword: string, newPassword: string) => boolean;
+  changeMyPassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
   // 2FA
   generateTwoFactorSecret: (userId: string) => string;
   enableTwoFactor: (userId: string, secret: string, token: string) => boolean;
@@ -59,11 +60,18 @@ export const useAuthStore = create<AuthState>()(
       users: DEFAULT_USERS,
       passwords: PASSWORDS,
 
-      login: (email, password) => {
+      login: async (email, password) => {
         const { users, passwords } = get();
         const user = users.find(u => u.email === email);
         if (!user) return { status: 'error', message: 'Utilisateur non trouvé' };
-        if (passwords[email] !== password) return { status: 'error', message: 'Mot de passe incorrect' };
+        const stored = passwords[email];
+        const ok = await verifyPassword(password, stored);
+        if (!ok) return { status: 'error', message: 'Mot de passe incorrect' };
+        // Transparently migrate a legacy plaintext password to a salted hash.
+        if (!isHashedPassword(stored)) {
+          const record = await makePasswordRecord(password);
+          set(state => ({ passwords: { ...state.passwords, [email]: record } }));
+        }
         if (user.twoFactorEnabled) {
           pendingTwoFactorEmail = email;
           return { status: 'needs_2fa' };
@@ -89,16 +97,17 @@ export const useAuthStore = create<AuthState>()(
         set({ currentUser: null });
       },
 
-      createUser: ({ password, projectName, ...userData }) => {
+      createUser: async ({ password, projectName, ...userData }) => {
         const newUser: User = {
           ...userData,
           id: uuid(),
           createdAt: new Date().toISOString(),
           twoFactorEnabled: false,
         };
+        const record = await makePasswordRecord(password);
         set(state => ({
           users: [...state.users, newUser],
-          passwords: { ...state.passwords, [newUser.email]: password },
+          passwords: { ...state.passwords, [newUser.email]: record },
         }));
         sendWelcomeEmail({
           toEmail: newUser.email,
@@ -132,20 +141,23 @@ export const useAuthStore = create<AuthState>()(
         }));
       },
 
-      changeMyPassword: (currentPassword, newPassword) => {
+      changeMyPassword: async (currentPassword, newPassword) => {
         const user = get().currentUser;
         if (!user) return false;
-        if (get().passwords[user.email] !== currentPassword) return false;
+        const ok = await verifyPassword(currentPassword, get().passwords[user.email]);
+        if (!ok) return false;
         if (newPassword.length < 8) return false;
-        set(state => ({ passwords: { ...state.passwords, [user.email]: newPassword } }));
+        const record = await makePasswordRecord(newPassword);
+        set(state => ({ passwords: { ...state.passwords, [user.email]: record } }));
         sendPasswordChangedEmail({ toEmail: user.email, toName: user.name });
         return true;
       },
 
-      updatePassword: (userId, newPassword) => {
+      updatePassword: async (userId, newPassword) => {
         const user = get().users.find(u => u.id === userId);
         if (!user) return;
-        set(state => ({ passwords: { ...state.passwords, [user.email]: newPassword } }));
+        const record = await makePasswordRecord(newPassword);
+        set(state => ({ passwords: { ...state.passwords, [user.email]: record } }));
         sendPasswordChangedEmail({ toEmail: user.email, toName: user.name });
       },
 

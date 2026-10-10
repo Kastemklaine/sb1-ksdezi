@@ -21,11 +21,11 @@ export default function LoginPage() {
     if (step === 'totp') tokenRef.current?.focus();
   }, [step]);
 
-  const handleCredentials = (e: React.FormEvent) => {
+  const handleCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    const result = login(email, password);
+    const result = await login(email, password);
     setLoading(false);
     if (result.status === 'error') {
       setError(result.message);

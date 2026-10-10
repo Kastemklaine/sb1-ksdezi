@@ -105,25 +105,26 @@ export default function GovernanceView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="bg-green-100 p-2 rounded-lg">
-            <Network className="w-5 h-5 text-green-700" />
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#00a862] to-[#00844e] text-white px-6 py-5 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="pointer-events-none absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/10" />
+        <div className="relative flex items-center gap-3">
+          <div className="bg-white/15 p-2.5 rounded-xl">
+            <Network className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gouvernance</h1>
-            <p className="text-gray-500 mt-0.5">Instances de pilotage du projet</p>
+            <h1 className="text-2xl font-extrabold">Gouvernance</h1>
+            <p className="text-white/80 mt-0.5 text-sm">Instances de pilotage et groupes de travail</p>
           </div>
         </div>
         {isSuperAdmin && (
-          <div className="flex items-center gap-2">
+          <div className="relative flex flex-wrap items-center gap-2">
             <button onClick={applyGovernancePlan}
               title="Ajouter automatiquement les 10 groupes de travail du plan"
-              className="flex items-center gap-2 bg-white border border-[#00c875] text-[#00a862] hover:bg-[#00c875]/10 text-sm font-medium px-4 py-2 rounded-lg min-h-[44px]">
+              className="flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white text-sm font-semibold px-4 py-2 rounded-lg min-h-[44px] backdrop-blur">
               <Layers className="w-4 h-4" /> Charger le plan
             </button>
             <button onClick={() => setShowNewForm(true)}
-              className="flex items-center gap-2 bg-[#00c875] hover:bg-[#00b368] text-white text-sm font-medium px-4 py-2 rounded-lg min-h-[44px]">
+              className="flex items-center gap-2 bg-white text-[#00844e] hover:bg-white/90 text-sm font-semibold px-4 py-2 rounded-lg min-h-[44px]">
               <Plus className="w-4 h-4" /> Nouvelle instance
             </button>
           </div>

@@ -195,12 +195,12 @@ export default function MyProfileModal({ onClose }: Props) {
     setTimeout(() => setPhotoSaved(false), 2500);
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     setPwError('');
     if (!currentPw) return setPwError('Veuillez saisir votre mot de passe actuel.');
     if (newPw.length < 8) return setPwError('Le nouveau mot de passe doit faire au moins 8 caractères.');
     if (newPw !== confirmPw) return setPwError('Les mots de passe ne correspondent pas.');
-    const ok = changeMyPassword(currentPw, newPw);
+    const ok = await changeMyPassword(currentPw, newPw);
     if (!ok) return setPwError('Mot de passe actuel incorrect.');
     setCurrentPw(''); setNewPw(''); setConfirmPw('');
     setPwSaved(true);

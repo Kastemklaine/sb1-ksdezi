@@ -50,3 +50,48 @@ export function isEncrypted(value: string): boolean {
     return false;
   }
 }
+
+/* ============================================================
+   Password hashing (PBKDF2-SHA256, per-user salt).
+   Stored format: "pbkdf2$<salt>$<hash>". Passwords are never kept
+   in clear text. Legacy plaintext entries are migrated on first login.
+   ============================================================ */
+
+function randomSalt(): string {
+  const a = crypto.getRandomValues(new Uint8Array(16));
+  return btoa(String.fromCharCode(...a));
+}
+
+async function pbkdf2(password: string, salt: string): Promise<string> {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: enc.encode(salt), iterations: 150000, hash: 'SHA-256' },
+    keyMaterial,
+    256
+  );
+  return btoa(String.fromCharCode(...new Uint8Array(bits)));
+}
+
+/** Returns true if the stored value is already a hashed record. */
+export function isHashedPassword(stored: string): boolean {
+  return typeof stored === 'string' && stored.startsWith('pbkdf2$');
+}
+
+/** Produce a salted hash record to store instead of the plain password. */
+export async function makePasswordRecord(password: string): Promise<string> {
+  const salt = randomSalt();
+  const hash = await pbkdf2(password, salt);
+  return `pbkdf2$${salt}$${hash}`;
+}
+
+/** Verify a password against a stored record (hashed or legacy plaintext). */
+export async function verifyPassword(password: string, stored: string | undefined): Promise<boolean> {
+  if (!stored) return false;
+  if (isHashedPassword(stored)) {
+    const [, salt, hash] = stored.split('$');
+    const h = await pbkdf2(password, salt);
+    return h === hash;
+  }
+  return stored === password; // legacy plaintext
+}
